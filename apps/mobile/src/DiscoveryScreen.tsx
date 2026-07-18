@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Button, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  Button,
+  PanResponder,
+  Text,
+  View,
+} from "react-native";
 import { act, discovery } from "./discoveryApi";
 import { DiscoveryProfile } from "./types";
 export function DiscoveryScreen({ accessToken }: { accessToken: string }) {
@@ -7,6 +14,7 @@ export function DiscoveryScreen({ accessToken }: { accessToken: string }) {
   const [cursor, setCursor] = useState<string | null>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const translateX = useState(new Animated.Value(0))[0];
   const load = async (retry = false) => {
     setLoading(true);
     setError(undefined);
@@ -38,6 +46,16 @@ export function DiscoveryScreen({ accessToken }: { accessToken: string }) {
       setError(e instanceof Error ? e.message : "Unable to save action");
     }
   };
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 8,
+    onPanResponderMove: (_, gesture) => translateX.setValue(gesture.dx),
+    onPanResponderRelease: (_, gesture) => {
+      if (Math.abs(gesture.dx) > 100) {
+        swipe(gesture.dx > 0 ? "like" : "pass");
+      }
+      translateX.setValue(0);
+    },
+  });
   if (loading && !cards.length)
     return (
       <View>
@@ -65,13 +83,16 @@ export function DiscoveryScreen({ accessToken }: { accessToken: string }) {
       </View>
     );
   return (
-    <View>
+    <Animated.View
+      {...panResponder.panHandlers}
+      style={{ transform: [{ translateX }] }}
+    >
       <Text>{card.display_name}</Text>
       <Text>@{card.username}</Text>
       <Text>{card.bio}</Text>
       <Text>{card.interests.map((interest) => interest.name).join(", ")}</Text>
       <Button title="Pass" onPress={() => swipe("pass")} />
       <Button title="Like" onPress={() => swipe("like")} />
-    </View>
+    </Animated.View>
   );
 }

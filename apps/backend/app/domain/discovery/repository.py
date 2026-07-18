@@ -1,23 +1,25 @@
 import base64
 from uuid import UUID
 from sqlalchemy import exists, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.discovery.models import ProfileLike, ProfilePass
 from app.domain.identity.models import User
 from app.domain.profile.models import UserProfile, profile_interests
 
 
-def decode_cursor(cursor: str | None) -> int:
+def decode_cursor(cursor: str | None) -> tuple[int, str] | None:
     if not cursor:
-        return 0
+        return None
     try:
-        return int(base64.urlsafe_b64decode(cursor.encode()).decode())
+        score, username = base64.urlsafe_b64decode(cursor.encode()).decode().split(":", 1)
+        return int(score), username
     except Exception as exc:
         raise ValueError("Invalid cursor") from exc
 
 
-def encode_cursor(offset: int) -> str:
-    return base64.urlsafe_b64encode(str(offset).encode()).decode()
+def encode_cursor(score: int, username: str) -> str:
+    return base64.urlsafe_b64encode(f"{score}:{username}".encode()).decode()
 
 
 class DiscoveryRepository:
@@ -39,7 +41,7 @@ class DiscoveryRepository:
         )
 
     async def candidates(
-        self, user_id: UUID, interest_ids: list[UUID], offset: int, limit: int
+        self, user_id: UUID, interest_ids: list[UUID], cursor: tuple[int, str] | None, limit: int
     ) -> list[UserProfile]:
         shared = (
             select(func.count())
@@ -73,34 +75,20 @@ class DiscoveryRepository:
                 UserProfile.profile_completion_percentage.desc(),
                 UserProfile.username,
             )
-            .offset(offset)
             .limit(limit + 1)
         )
+        if cursor:
+            score, username = cursor
+            query = query.where(
+                (shared < score) | ((shared == score) & (UserProfile.username > username))
+            )
         return list(await self.db.scalars(query))
 
-    async def action_exists(self, model, actor: UUID, target: UUID) -> bool:
-        return bool(
-            await self.db.scalar(
-                select(
-                    exists().where(
-                        (model.liker_user_id if model is ProfileLike else model.passer_user_id)
-                        == actor,
-                        (model.liked_user_id if model is ProfileLike else model.passed_user_id)
-                        == target,
-                    )
-                )
-            )
-        )
-
     async def record(self, model, actor: UUID, target: UUID) -> None:
-        if not await self.action_exists(model, actor, target):
-            self.db.add(
-                model(
-                    **(
-                        {"liker_user_id": actor, "liked_user_id": target}
-                        if model is ProfileLike
-                        else {"passer_user_id": actor, "passed_user_id": target}
-                    )
-                )
-            )
-            await self.db.commit()
+        values = (
+            {"liker_user_id": actor, "liked_user_id": target}
+            if model is ProfileLike
+            else {"passer_user_id": actor, "passed_user_id": target}
+        )
+        await self.db.execute(insert(model).values(**values).on_conflict_do_nothing())
+        await self.db.commit()

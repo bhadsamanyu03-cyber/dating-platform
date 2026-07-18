@@ -1,4 +1,3 @@
-from datetime import date
 from uuid import UUID
 from pydantic import BaseModel
 from app.domain.profile.schemas import InterestResponse
@@ -15,7 +14,7 @@ class DiscoveryProfile(BaseModel):
     bio: str
     gender: str
     pronouns: str | None
-    date_of_birth: date
+    age: int
     height_cm: int | None
     interests: list[InterestResponse]
     profile_completion_percentage: int

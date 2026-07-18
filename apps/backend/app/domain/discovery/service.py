@@ -1,4 +1,5 @@
 from uuid import UUID
+from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.discovery.models import ProfileLike, ProfilePass
 from app.domain.discovery.repository import DiscoveryRepository, decode_cursor, encode_cursor
@@ -21,7 +22,12 @@ class RankingStrategy:
             bio=value.bio,
             gender=value.gender,
             pronouns=value.pronouns,
-            date_of_birth=value.date_of_birth,
+            age=date.today().year
+            - value.date_of_birth.year
+            - (
+                (date.today().month, date.today().day)
+                < (value.date_of_birth.month, value.date_of_birth.day)
+            ),
             height_cm=value.height_cm,
             interests=[InterestResponse(id=i.id, name=i.name) for i in value.interests],
             profile_completion_percentage=value.profile_completion_percentage,
@@ -34,14 +40,20 @@ class DiscoveryService:
 
     async def discover(self, user: User, cursor: str | None, limit: int) -> DiscoveryPage:
         own = await self.repo.profile_for_user(user.id)
-        if not own:
+        if not own or own.profile_completion_percentage < 100:
             raise DiscoveryError("Complete your profile before discovery", 403)
-        offset = decode_cursor(cursor)
-        rows = await self.repo.candidates(user.id, [i.id for i in own.interests], offset, limit)
+        keyset = decode_cursor(cursor)
+        rows = await self.repo.candidates(user.id, [i.id for i in own.interests], keyset, limit)
         has_more = len(rows) > limit
         return DiscoveryPage(
             candidates=[self.ranking.profile(row) for row in rows[:limit]],
-            next_cursor=encode_cursor(offset + limit) if has_more else None,
+            next_cursor=(
+                encode_cursor(
+                    rows[limit - 1].profile_completion_percentage, rows[limit - 1].username
+                )
+                if has_more
+                else None
+            ),
         )
 
     async def action(self, user: User, target: UUID, model) -> None:
