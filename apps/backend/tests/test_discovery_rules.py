@@ -6,7 +6,7 @@ from app.domain.identity.models import User
 
 
 def test_cursor_round_trip_and_invalid_value() -> None:
-    assert decode_cursor(encode_cursor(42, "candidate")) == (42, "candidate")
+    assert decode_cursor(encode_cursor(42, 100, "candidate")) == (42, 100, "candidate")
     with pytest.raises(ValueError):
         decode_cursor("invalid")
 

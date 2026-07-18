@@ -46,10 +46,12 @@ class DiscoveryService:
         rows = await self.repo.candidates(user.id, [i.id for i in own.interests], keyset, limit)
         has_more = len(rows) > limit
         return DiscoveryPage(
-            candidates=[self.ranking.profile(row) for row in rows[:limit]],
+            candidates=[self.ranking.profile(row) for row, _ in rows[:limit]],
             next_cursor=(
                 encode_cursor(
-                    rows[limit - 1].profile_completion_percentage, rows[limit - 1].username
+                    rows[limit - 1][1],
+                    rows[limit - 1][0].profile_completion_percentage,
+                    rows[limit - 1][0].username,
                 )
                 if has_more
                 else None

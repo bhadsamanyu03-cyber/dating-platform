@@ -8,18 +8,20 @@ from app.domain.identity.models import User
 from app.domain.profile.models import UserProfile, profile_interests
 
 
-def decode_cursor(cursor: str | None) -> tuple[int, str] | None:
+def decode_cursor(cursor: str | None) -> tuple[int, int, str] | None:
     if not cursor:
         return None
     try:
-        score, username = base64.urlsafe_b64decode(cursor.encode()).decode().split(":", 1)
-        return int(score), username
+        shared_count, completion, username = (
+            base64.urlsafe_b64decode(cursor.encode()).decode().split(":", 2)
+        )
+        return int(shared_count), int(completion), username
     except Exception as exc:
         raise ValueError("Invalid cursor") from exc
 
 
-def encode_cursor(score: int, username: str) -> str:
-    return base64.urlsafe_b64encode(f"{score}:{username}".encode()).decode()
+def encode_cursor(shared_count: int, completion: int, username: str) -> str:
+    return base64.urlsafe_b64encode(f"{shared_count}:{completion}:{username}".encode()).decode()
 
 
 class DiscoveryRepository:
@@ -41,8 +43,12 @@ class DiscoveryRepository:
         )
 
     async def candidates(
-        self, user_id: UUID, interest_ids: list[UUID], cursor: tuple[int, str] | None, limit: int
-    ) -> list[UserProfile]:
+        self,
+        user_id: UUID,
+        interest_ids: list[UUID],
+        cursor: tuple[int, int, str] | None,
+        limit: int,
+    ) -> list[tuple[UserProfile, int]]:
         shared = (
             select(func.count())
             .select_from(profile_interests)
@@ -59,7 +65,7 @@ class DiscoveryRepository:
             ProfilePass.passer_user_id == user_id, ProfilePass.passed_user_id == UserProfile.user_id
         )
         query = (
-            select(UserProfile)
+            select(UserProfile, shared.label("shared_count"))
             .where(
                 UserProfile.user_id != user_id,
                 exists().where(
@@ -78,11 +84,20 @@ class DiscoveryRepository:
             .limit(limit + 1)
         )
         if cursor:
-            score, username = cursor
+            shared_count, completion, username = cursor
             query = query.where(
-                (shared < score) | ((shared == score) & (UserProfile.username > username))
+                (shared < shared_count)
+                | (
+                    (shared == shared_count)
+                    & (UserProfile.profile_completion_percentage < completion)
+                )
+                | (
+                    (shared == shared_count)
+                    & (UserProfile.profile_completion_percentage == completion)
+                    & (UserProfile.username > username)
+                )
             )
-        return list(await self.db.scalars(query))
+        return [(row[0], row[1]) for row in (await self.db.execute(query)).all()]
 
     async def record(self, model, actor: UUID, target: UUID) -> None:
         values = (

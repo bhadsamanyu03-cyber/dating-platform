@@ -30,7 +30,7 @@ class Repository:
         return self.own
 
     async def candidates(self, *_):
-        return self.rows
+        return [(row, 0) for row in self.rows]
 
     async def target_exists(self, _):
         return True
