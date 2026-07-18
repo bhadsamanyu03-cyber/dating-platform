@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.matching.models import Match
 from app.domain.matching.repository import MatchRepository, decode_cursor, encode_cursor
 from app.domain.matching.schemas import MatchPage, MatchResponse, MatchSummary
+from app.domain.messaging.service import MessagingService
 
 
 class MatchError(Exception):
@@ -22,7 +23,10 @@ class MatchService:
         await self.repo.lock_pair(actor, target)
         if not await self.repo.reciprocal_like_exists(actor, target):
             return None
-        return await self.repo.create_pair(actor, target)
+        match = await self.repo.create_pair(actor, target)
+        if match:
+            await MessagingService(self.db).ensure_conversation(match.id)
+        return match
 
     async def response(self, match: Match, user_id: UUID) -> MatchResponse:
         profile = await self.repo.other_profile(match, user_id)

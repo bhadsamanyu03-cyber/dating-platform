@@ -3,15 +3,16 @@ import { Button, Text, TextInput, View } from "react-native";
 import { ProfileScreen } from "./ProfileScreen";
 import { DiscoveryScreen } from "./DiscoveryScreen";
 import { MatchesScreen } from "./MatchesScreen";
+import { ConversationsScreen } from "./ConversationsScreen";
 const api = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 export function AuthGate() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
   const [token, setToken] = useState<string>();
-  const [screen, setScreen] = useState<"profile" | "discovery" | "matches">(
-    "profile",
-  );
+  const [screen, setScreen] = useState<
+    "profile" | "discovery" | "matches" | "conversations"
+  >("profile");
   const [error, setError] = useState<string>();
   const submit = async (path: "login" | "register") => {
     setError(undefined);
@@ -49,12 +50,18 @@ export function AuthGate() {
         <Button title="Profile" onPress={() => setScreen("profile")} />
         <Button title="Discover" onPress={() => setScreen("discovery")} />
         <Button title="Matches" onPress={() => setScreen("matches")} />
+        <Button
+          title="Conversations"
+          onPress={() => setScreen("conversations")}
+        />
         {screen === "profile" ? (
           <ProfileScreen accessToken={token} />
         ) : screen === "discovery" ? (
           <DiscoveryScreen accessToken={token} />
-        ) : (
+        ) : screen === "matches" ? (
           <MatchesScreen accessToken={token} />
+        ) : (
+          <ConversationsScreen accessToken={token} />
         )}
       </View>
     );
