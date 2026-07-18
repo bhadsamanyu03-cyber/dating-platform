@@ -113,6 +113,8 @@ class IdentityService:
             await self.audit("login_failed", user.id if user else None, ip)
             await self.db.commit()
             raise AuthError("Invalid email or password", 401)
+        if not user.is_email_verified:
+            raise AuthError("Email verification is required", 403)
         tokens = await self._create_session_tokens(user, ip, user_agent)
         await self.audit("login_succeeded", user.id, ip)
         await self.db.commit()

@@ -6,6 +6,11 @@ import re
 USERNAME = re.compile(r"^[A-Za-z0-9_]{3,30}$")
 
 
+def is_username_profane(_: str) -> bool:
+    """Extension point for a future approved profanity provider or policy."""
+    return False
+
+
 class ProfileUpdate(BaseModel):
     username: str
     display_name: str = Field(min_length=1, max_length=100)
@@ -21,6 +26,8 @@ class ProfileUpdate(BaseModel):
     def username_format(cls, value: str) -> str:
         if not USERNAME.fullmatch(value):
             raise ValueError("Username must be 3-30 letters, numbers, or underscores")
+        if is_username_profane(value):
+            raise ValueError("Username is unavailable")
         return value
 
 

@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+node_modules/
+.expo/
+work/
+full-tree.txt
+project-tree.txt
