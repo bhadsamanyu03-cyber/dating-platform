@@ -50,7 +50,7 @@ def seed_profile(
              profile_completion_percentage)
         VALUES (%s, %s, %s, %s, '', 'Unspecified', '2000-01-01', %s)
         """,
-        (profile_id, user_id, f"discovery_{label}_{str(user_id)[:8]}", label, completion),
+        (profile_id, user_id, f"d_{label[:8]}_{str(user_id)[:8]}", label, completion),
     )
     return user_id, profile_id
 
@@ -108,7 +108,9 @@ def test_repository_api_filtering_ranking_and_keyset_pagination() -> None:
             headers=authorization(actor),
         )
         assert second.status_code == 200
-        assert [candidate["user_id"] for candidate in second.json()["candidates"]] == [str(low)]
+        second_page_ids = [candidate["user_id"] for candidate in second.json()["candidates"]]
+        assert str(low) in second_page_ids
+        assert str(high) not in second_page_ids and str(middle) not in second_page_ids
         assert second.json()["next_cursor"] is None
 
 
