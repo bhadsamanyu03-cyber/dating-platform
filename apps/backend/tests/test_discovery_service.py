@@ -35,13 +35,24 @@ class Repository:
     async def target_exists(self, _):
         return True
 
-    async def record(self, model, actor, target):
+    async def record(self, model, actor, target, commit=True):
         self.recorded.append((model, actor, target))
 
 
+class Database:
+    async def commit(self):
+        pass
+
+
+class Matching:
+    async def synchronize_after_like(self, *_):
+        return None
+
+
 def service(own, rows=()):
-    result = DiscoveryService(None)
+    result = DiscoveryService(Database())
     result.repo = Repository(own, rows)
+    result.matching = Matching()
     return result
 
 

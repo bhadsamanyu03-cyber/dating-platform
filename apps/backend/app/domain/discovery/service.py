@@ -5,6 +5,7 @@ from app.domain.discovery.models import ProfileLike, ProfilePass
 from app.domain.discovery.repository import DiscoveryRepository, decode_cursor, encode_cursor
 from app.domain.discovery.schemas import DiscoveryPage, DiscoveryProfile
 from app.domain.identity.models import User
+from app.domain.matching.service import MatchService
 from app.domain.profile.schemas import InterestResponse
 
 
@@ -37,6 +38,7 @@ class RankingStrategy:
 class DiscoveryService:
     def __init__(self, db: AsyncSession, ranking: RankingStrategy | None = None):
         self.db, self.repo, self.ranking = db, DiscoveryRepository(db), ranking or RankingStrategy()
+        self.matching = MatchService(db)
 
     async def discover(self, user: User, cursor: str | None, limit: int) -> DiscoveryPage:
         own = await self.repo.profile_for_user(user.id)
@@ -63,7 +65,10 @@ class DiscoveryService:
             raise DiscoveryError("You cannot act on your own profile", 422)
         if not await self.repo.target_exists(target):
             raise DiscoveryError("Profile not found", 404)
-        await self.repo.record(model, user.id, target)
+        await self.repo.record(model, user.id, target, commit=False)
+        if model is ProfileLike:
+            await self.matching.synchronize_after_like(user.id, target)
+        await self.db.commit()
 
     async def like(self, user: User, target: UUID) -> None:
         await self.action(user, target, ProfileLike)
