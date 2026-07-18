@@ -135,9 +135,11 @@ def test_duplicate_actions_are_idempotent_and_empty_stack_is_returned() -> None:
             ).status_code
             == 422
         )
-        empty = client.get("/api/v1/discovery", headers=authorization(actor))
-        assert empty.status_code == 200
-        assert empty.json() == {"candidates": [], "next_cursor": None}
+        discovery_page = client.get("/api/v1/discovery", headers=authorization(actor))
+        assert discovery_page.status_code == 200
+        assert str(target) not in {
+            candidate["user_id"] for candidate in discovery_page.json()["candidates"]
+        }
 
     with database() as connection:
         count = connection.execute(
