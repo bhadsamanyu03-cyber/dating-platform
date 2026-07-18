@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import { ProfileScreen } from "./ProfileScreen";
+import { DiscoveryScreen } from "./DiscoveryScreen";
 const api = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 export function AuthGate() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
   const [token, setToken] = useState<string>();
+  const [screen, setScreen] = useState<"profile" | "discovery">("profile");
   const [error, setError] = useState<string>();
   const submit = async (path: "login" | "register") => {
     setError(undefined);
@@ -38,7 +40,22 @@ export function AuthGate() {
         : "Verification failed.",
     );
   };
-  if (token) return <ProfileScreen accessToken={token} />;
+  if (token)
+    return (
+      <View style={{ flex: 1 }}>
+        <Button
+          title={screen === "profile" ? "Discover" : "Profile"}
+          onPress={() =>
+            setScreen(screen === "profile" ? "discovery" : "profile")
+          }
+        />
+        {screen === "profile" ? (
+          <ProfileScreen accessToken={token} />
+        ) : (
+          <DiscoveryScreen accessToken={token} />
+        )}
+      </View>
+    );
   return (
     <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 10 }}>
       <Text>Sign in to manage your profile</Text>
