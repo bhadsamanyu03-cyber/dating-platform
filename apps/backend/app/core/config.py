@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn, SecretStr, model_validator
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
     s3_bucket: str
     s3_access_key_id: str
     s3_secret_access_key: SecretStr
+    media_storage_path: Path = Path("/tmp/dating-platform-media")
 
     @model_validator(mode="after")
     def validate_production(self) -> "Settings":

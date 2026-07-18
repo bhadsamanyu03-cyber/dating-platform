@@ -8,6 +8,7 @@ from app.api.auth import router as auth_router
 from app.api.profile import interests_router, profile_router
 from app.api.discovery import router as discovery_router
 from app.api.matches import router as matches_router
+from app.api.media import router as media_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.infrastructure.database import create_database_engine
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(interests_router, prefix=settings.api_prefix)
     app.include_router(discovery_router, prefix=settings.api_prefix)
     app.include_router(matches_router, prefix=settings.api_prefix)
+    app.include_router(media_router, prefix=settings.api_prefix)
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(_, __):
