@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { HomeScreen } from "./placeholders/HomeScreen";
+import { HomeScreen } from "../screens/main/HomeScreen";
 import { DiscoverScreen } from "./placeholders/DiscoverScreen";
 import { FeedScreen } from "./placeholders/FeedScreen";
 import { MessagesScreen } from "./placeholders/MessagesScreen";
