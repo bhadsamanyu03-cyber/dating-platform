@@ -9,7 +9,7 @@ from app.api.profile import interests_router, profile_router
 from app.api.discovery import router as discovery_router
 from app.api.matches import router as matches_router
 from app.api.media import router as media_router
-from app.api.conversations import router as conversations_router
+from app.api.conversations import message_router, router as conversations_router
 from app.api.feed import router as feed_router
 from app.api.search import router as search_router
 from app.core.config import get_settings
@@ -52,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(matches_router, prefix=settings.api_prefix)
     app.include_router(media_router, prefix=settings.api_prefix)
     app.include_router(conversations_router, prefix=settings.api_prefix)
+    app.include_router(message_router, prefix=settings.api_prefix)
     app.include_router(feed_router, prefix=settings.api_prefix)
     app.include_router(search_router, prefix=settings.api_prefix)
 
