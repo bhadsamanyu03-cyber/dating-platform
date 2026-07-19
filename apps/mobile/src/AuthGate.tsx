@@ -5,6 +5,7 @@ import { DiscoveryScreen } from "./DiscoveryScreen";
 import { MatchesScreen } from "./MatchesScreen";
 import { ConversationsScreen } from "./ConversationsScreen";
 import { FeedScreen } from "./FeedScreen";
+import { SearchScreen } from "./SearchScreen";
 const api = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 export function AuthGate() {
   const [email, setEmail] = useState("");
@@ -12,7 +13,7 @@ export function AuthGate() {
   const [verificationToken, setVerificationToken] = useState("");
   const [token, setToken] = useState<string>();
   const [screen, setScreen] = useState<
-    "profile" | "discovery" | "matches" | "conversations" | "feed"
+    "profile" | "discovery" | "matches" | "conversations" | "feed" | "search"
   >("profile");
   const [error, setError] = useState<string>();
   const submit = async (path: "login" | "register") => {
@@ -56,6 +57,7 @@ export function AuthGate() {
           onPress={() => setScreen("conversations")}
         />
         <Button title="Feed" onPress={() => setScreen("feed")} />
+        <Button title="Search" onPress={() => setScreen("search")} />
         {screen === "profile" ? (
           <ProfileScreen accessToken={token} />
         ) : screen === "discovery" ? (
@@ -64,8 +66,10 @@ export function AuthGate() {
           <MatchesScreen accessToken={token} />
         ) : screen === "conversations" ? (
           <ConversationsScreen accessToken={token} />
-        ) : (
+        ) : screen === "feed" ? (
           <FeedScreen />
+        ) : (
+          <SearchScreen accessToken={token} />
         )}
       </View>
     );
