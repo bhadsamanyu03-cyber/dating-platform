@@ -39,7 +39,13 @@ function SkeletonBase({
   return (
     <Animated.View
       style={[
-        { width, height, borderRadius, backgroundColor: colors.skeleton, opacity },
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: colors.skeleton,
+          opacity,
+        },
         style,
       ]}
     />

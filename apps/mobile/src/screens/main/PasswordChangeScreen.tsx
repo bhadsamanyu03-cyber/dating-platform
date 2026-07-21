@@ -79,7 +79,7 @@ export function PasswordChangeScreen({
             current_password: currentPassword,
             new_password: newPassword,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -109,7 +109,8 @@ export function PasswordChangeScreen({
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Change Password</Text>
       <Text style={styles.description}>
-        For your security, please enter your current password and a new password.
+        For your security, please enter your current password and a new
+        password.
       </Text>
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -192,9 +193,12 @@ export function PasswordChangeScreen({
       <View style={styles.info}>
         <Text style={styles.infoTitle}>Password Requirements</Text>
         <Text style={styles.infoBullet}>• At least 8 characters long</Text>
-        <Text style={styles.infoBullet}>• Must be different from your current password</Text>
         <Text style={styles.infoBullet}>
-          • We recommend using a mix of uppercase, lowercase, numbers, and symbols
+          • Must be different from your current password
+        </Text>
+        <Text style={styles.infoBullet}>
+          • We recommend using a mix of uppercase, lowercase, numbers, and
+          symbols
         </Text>
       </View>
     </ScrollView>

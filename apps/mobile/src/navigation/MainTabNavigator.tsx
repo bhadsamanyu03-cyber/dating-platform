@@ -1,11 +1,12 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { HomeScreen } from "../screens/main/HomeScreen";
-import { DiscoverScreen } from "./placeholders/DiscoverScreen";
-import { FeedScreen } from "./placeholders/FeedScreen";
-import { MessagesScreen } from "./placeholders/MessagesScreen";
-import { ProfileScreen } from "./placeholders/ProfileScreen";
+import { DiscoveryScreen } from "../DiscoveryScreen";
+import { FeedScreen } from "../FeedScreen";
+import { ConversationsScreen } from "../ConversationsScreen";
+import { ProfileScreen } from "../ProfileScreen";
 import { BottomTabBar, BottomTabItem } from "../components/BottomTabBar";
 import { colors } from "../theme";
+import { useAuthSession } from "../AuthSession";
 
 export type MainTabParamList = {
   Home: undefined;
@@ -41,6 +42,8 @@ const TAB_ITEMS: BottomTabItem[] = [
 ];
 
 export function MainTabNavigator() {
+  const { session } = useAuthSession();
+  if (!session) return null;
   return (
     <Tab.Navigator
       screenOptions={{
@@ -56,10 +59,16 @@ export function MainTabNavigator() {
       )}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Discover" component={DiscoverScreen} />
-      <Tab.Screen name="Feed" component={FeedScreen} />
-      <Tab.Screen name="Messages" component={MessagesScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Discover">
+        {() => <DiscoveryScreen accessToken={session.accessToken} />}
+      </Tab.Screen>
+      <Tab.Screen name="Feed">{() => <FeedScreen />}</Tab.Screen>
+      <Tab.Screen name="Messages">
+        {() => <ConversationsScreen accessToken={session.accessToken} />}
+      </Tab.Screen>
+      <Tab.Screen name="Profile">
+        {() => <ProfileScreen accessToken={session.accessToken} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }

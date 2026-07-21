@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import { getMyProfile } from "../../profileApi";
-import { getMatches } from "../../discoveryApi";
+import { getMatches } from "../../matchesApi";
 
 type Props = {
   accessToken: string;
@@ -38,7 +38,7 @@ export function QuickStatsScreen({ accessToken }: Props) {
 
       setStats({
         profileCompletion: profile.profile_completion_percentage,
-        totalMatches: matches.total_count,
+        totalMatches: matches.matches.length,
         profilePhotos: profile.profile_photo_count,
         interests: profile.interests.length,
       });
@@ -67,10 +67,13 @@ export function QuickStatsScreen({ accessToken }: Props) {
   }
 
   const completionColor =
-    stats.profileCompletion >= 100 ? "#4caf50" :
-    stats.profileCompletion >= 75 ? "#8bc34a" :
-    stats.profileCompletion >= 50 ? "#ff9800" :
-    "#f44336";
+    stats.profileCompletion >= 100
+      ? "#4caf50"
+      : stats.profileCompletion >= 75
+        ? "#8bc34a"
+        : stats.profileCompletion >= 50
+          ? "#ff9800"
+          : "#f44336";
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -188,11 +191,7 @@ function StatCard(props: {
 }
 
 function TipItem({ text }: { text: string }) {
-  return (
-    <Text style={styles.tipText}>
-      • {text}
-    </Text>
-  );
+  return <Text style={styles.tipText}>• {text}</Text>;
 }
 
 function Achievement(props: {

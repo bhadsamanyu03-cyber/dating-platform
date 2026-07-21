@@ -7,8 +7,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { getMatches } from "../../discoveryApi";
-import { Match } from "../../types";
+import { getMatches } from "../../matchesApi";
+import { MatchResponse } from "../../types";
 
 type Props = {
   accessToken: string;
@@ -23,7 +23,7 @@ export function MatchDetailScreen({
   onClose,
   onMessage,
 }: Props) {
-  const [match, setMatch] = useState<Match | null>(null);
+  const [match, setMatch] = useState<MatchResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
 
@@ -33,7 +33,7 @@ export function MatchDetailScreen({
       setError(undefined);
       try {
         const data = await getMatches(accessToken);
-        const found = data.matches.find((m) => m.match_id === matchId);
+        const found = data.matches.find((m) => m.id === matchId);
         if (!found) {
           setError("Match not found");
         } else {
@@ -75,10 +75,10 @@ export function MatchDetailScreen({
     );
   }
 
-  const { matched_user: profile, created_at } = match;
+  const { match: profile, created_at } = match;
   const matchedDate = new Date(created_at);
   const daysSinceMatch = Math.floor(
-    (Date.now() - matchedDate.getTime()) / (1000 * 60 * 60 * 24)
+    (Date.now() - matchedDate.getTime()) / (1000 * 60 * 60 * 24),
   );
 
   return (
@@ -90,69 +90,21 @@ export function MatchDetailScreen({
 
       <View style={styles.matchInfo}>
         <Text style={styles.matchInfoText}>
-          Matched {daysSinceMatch === 0 ? "today" : `${daysSinceMatch} days ago`}
+          Matched{" "}
+          {daysSinceMatch === 0 ? "today" : `${daysSinceMatch} days ago`}
         </Text>
       </View>
 
-      {profile.age && (
-        <View style={styles.section}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{profile.age} years old</Text>
-          </View>
-        </View>
-      )}
-
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
-        <Text style={styles.bio}>{profile.bio || "No bio provided"}</Text>
+        <Text style={styles.bio}>
+          Open their public profile to learn more about your match.
+        </Text>
       </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Profile Info</Text>
-        <View style={styles.infoGrid}>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Gender</Text>
-            <Text style={styles.infoValue}>{profile.gender}</Text>
-          </View>
-          {profile.pronouns && (
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Pronouns</Text>
-              <Text style={styles.infoValue}>{profile.pronouns}</Text>
-            </View>
-          )}
-          {profile.height_cm && (
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Height</Text>
-              <Text style={styles.infoValue}>{profile.height_cm} cm</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {profile.interests.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Interests</Text>
-          <View style={styles.interestsList}>
-            {profile.interests.map((interest) => (
-              <View key={interest.id} style={styles.interestTag}>
-                <Text style={styles.interestText}>{interest.name}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
 
       <View style={styles.actions}>
-        <Button
-          title="Message"
-          onPress={onMessage}
-          color="#1976d2"
-        />
-        <Button
-          title="Close"
-          onPress={onClose}
-          color="#666"
-        />
+        <Button title="Message" onPress={onMessage} color="#1976d2" />
+        <Button title="Close" onPress={onClose} color="#666" />
       </View>
     </ScrollView>
   );
@@ -192,7 +144,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
   },
-  infoLabel: { fontSize: 12, color: "#999", fontWeight: "600", marginBottom: 4 },
+  infoLabel: {
+    fontSize: 12,
+    color: "#999",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
   infoValue: { fontSize: 15, color: "#000", fontWeight: "500" },
   interestsList: {
     flexDirection: "row",

@@ -20,7 +20,7 @@ export function YourLikesScreen({ accessToken }: Props) {
   const [error, setError] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
   const [viewingProfile, setViewingProfile] = useState<DiscoveryProfile | null>(
-    null
+    null,
   );
 
   const load = async () => {
@@ -31,7 +31,7 @@ export function YourLikesScreen({ accessToken }: Props) {
       // For now, show empty state with helpful message
       setLikes([]);
       setError(
-        "The \"Likes You\" feature is coming soon! Complete your profile to enable this feature."
+        'The "Likes You" feature is coming soon! Complete your profile to enable this feature.',
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load likes");
@@ -131,7 +131,9 @@ function LikeCard(props: {
         <View style={styles.title}>
           <Text style={styles.displayName}>{profile.display_name}</Text>
           <Text style={styles.username}>@{profile.username}</Text>
-          {profile.age && <Text style={styles.age}>{profile.age} years old</Text>}
+          {profile.age && (
+            <Text style={styles.age}>{profile.age} years old</Text>
+          )}
         </View>
       </View>
 
@@ -199,7 +201,12 @@ function LikeDetailView({ profile }: { profile: DiscoveryProfile }) {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   container: { padding: 12, gap: 12 },
-  message: { fontSize: 16, color: "#666", textAlign: "center", marginHorizontal: 20 },
+  message: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginHorizontal: 20,
+  },
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,

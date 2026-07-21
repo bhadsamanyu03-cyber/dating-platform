@@ -29,7 +29,7 @@ export function BlockedUsersScreen({ accessToken }: Props) {
   // Placeholder - will integrate with backend when endpoint is available
   const handleLoadBlockedUsers = () => {
     setError(
-      "Blocking functionality will be available when the endpoint is implemented"
+      "Blocking functionality will be available when the endpoint is implemented",
     );
   };
 
@@ -92,7 +92,8 @@ export function BlockedUsersScreen({ accessToken }: Props) {
         <View style={styles.header}>
           <Text style={styles.title}>Blocked Users</Text>
           <Text style={styles.subtitle}>
-            {blockedUsers.length} {blockedUsers.length === 1 ? "user" : "users"} blocked
+            {blockedUsers.length} {blockedUsers.length === 1 ? "user" : "users"}{" "}
+            blocked
           </Text>
         </View>
       }

@@ -1,8 +1,12 @@
-import { useState } from "react";
-import { DarkTheme, NavigationContainer, Theme } from "@react-navigation/native";
+import {
+  DarkTheme,
+  NavigationContainer,
+  Theme,
+} from "@react-navigation/native";
 import { AuthNavigator } from "./AuthNavigator";
 import { MainTabNavigator } from "./MainTabNavigator";
 import { colors } from "../theme";
+import { AuthSessionProvider, useAuthSession } from "../AuthSession";
 
 const navigationTheme: Theme = {
   ...DarkTheme,
@@ -23,12 +27,19 @@ const navigationTheme: Theme = {
  * against the existing backend contracts (see AuthGate.tsx for the
  * current working auth flow, left untouched).
  */
-export function RootNavigator() {
-  const [isAuthenticated] = useState(false);
-
+function NavigatorContent() {
+  const { session } = useAuthSession();
   return (
     <NavigationContainer theme={navigationTheme}>
-      {isAuthenticated ? <MainTabNavigator /> : <AuthNavigator />}
+      {session ? <MainTabNavigator /> : <AuthNavigator />}
     </NavigationContainer>
+  );
+}
+
+export function RootNavigator() {
+  return (
+    <AuthSessionProvider>
+      <NavigatorContent />
+    </AuthSessionProvider>
   );
 }

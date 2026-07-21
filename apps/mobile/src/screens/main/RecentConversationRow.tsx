@@ -21,7 +21,12 @@ export function RecentConversationRow({
       <Text style={styles.name} numberOfLines={1}>
         {name}
       </Text>
-      <IconSet name={iconNames.back} size={18} color={colors.text.muted} style={styles.chevron} />
+      <IconSet
+        name={iconNames.back}
+        size={18}
+        color={colors.text.muted}
+        style={styles.chevron}
+      />
     </Pressable>
   );
 }

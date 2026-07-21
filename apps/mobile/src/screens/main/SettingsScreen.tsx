@@ -45,40 +45,38 @@ export function SettingsScreen({ accessToken, onLogout }: Props) {
         {
           text: "Delete",
           onPress: () => {
-            Alert.alert(
-              "Confirm",
-              "Type DELETE to confirm account deletion.",
-              [
-                {
-                  text: "Cancel",
-                  onPress: () => {},
-                  style: "cancel",
+            Alert.alert("Confirm", "Type DELETE to confirm account deletion.", [
+              {
+                text: "Cancel",
+                onPress: () => {},
+                style: "cancel",
+              },
+              {
+                text: "Confirm",
+                onPress: async () => {
+                  setActionInProgress(true);
+                  try {
+                    // TODO: Call DELETE /api/v1/auth/account endpoint
+                    // For now, just logout
+                    onLogout();
+                  } catch (e) {
+                    Alert.alert(
+                      "Error",
+                      e instanceof Error
+                        ? e.message
+                        : "Unable to delete account",
+                    );
+                  } finally {
+                    setActionInProgress(false);
+                  }
                 },
-                {
-                  text: "Confirm",
-                  onPress: async () => {
-                    setActionInProgress(true);
-                    try {
-                      // TODO: Call DELETE /api/v1/auth/account endpoint
-                      // For now, just logout
-                      onLogout();
-                    } catch (e) {
-                      Alert.alert(
-                        "Error",
-                        e instanceof Error ? e.message : "Unable to delete account"
-                      );
-                    } finally {
-                      setActionInProgress(false);
-                    }
-                  },
-                  style: "destructive",
-                },
-              ]
-            );
+                style: "destructive",
+              },
+            ]);
           },
           style: "destructive",
         },
-      ]
+      ],
     );
   };
 
@@ -108,7 +106,7 @@ export function SettingsScreen({ accessToken, onLogout }: Props) {
           onPress={() =>
             Alert.alert(
               "Coming soon",
-              "Blocking functionality is not yet available"
+              "Blocking functionality is not yet available",
             )
           }
         />
@@ -129,7 +127,7 @@ export function SettingsScreen({ accessToken, onLogout }: Props) {
           onPress={() =>
             Alert.alert(
               "Coming soon",
-              "Notification settings are not yet available"
+              "Notification settings are not yet available",
             )
           }
         />
@@ -137,18 +135,14 @@ export function SettingsScreen({ accessToken, onLogout }: Props) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
-        <SettingItem
-          label="App version"
-          description="0.1.0"
-          disabled
-        />
+        <SettingItem label="App version" description="0.1.0" disabled />
         <SettingItem
           label="Terms of Service"
           description="View our terms"
           onPress={() =>
             Alert.alert(
               "Coming soon",
-              "Terms of Service link not yet available"
+              "Terms of Service link not yet available",
             )
           }
         />
@@ -156,10 +150,7 @@ export function SettingsScreen({ accessToken, onLogout }: Props) {
           label="Privacy Policy"
           description="View our privacy policy"
           onPress={() =>
-            Alert.alert(
-              "Coming soon",
-              "Privacy Policy link not yet available"
-            )
+            Alert.alert("Coming soon", "Privacy Policy link not yet available")
           }
         />
       </View>
@@ -191,10 +182,7 @@ export function SettingsScreen({ accessToken, onLogout }: Props) {
         presentationStyle="pageSheet"
       >
         <View style={styles.modalHeader}>
-          <Button
-            title="Close"
-            onPress={() => setShowPasswordChange(false)}
-          />
+          <Button title="Close" onPress={() => setShowPasswordChange(false)} />
         </View>
         <PasswordChangeScreen
           accessToken={accessToken}
@@ -203,7 +191,7 @@ export function SettingsScreen({ accessToken, onLogout }: Props) {
             setShowPasswordChange(false);
             Alert.alert(
               "Password Changed",
-              "Your password has been successfully updated."
+              "Your password has been successfully updated.",
             );
           }}
         />

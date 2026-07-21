@@ -44,7 +44,7 @@ export function NotificationFeedScreen({ accessToken }: Props) {
 
   const handleMarkAsRead = (id: string) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
   };
 
@@ -200,18 +200,14 @@ function NotificationItem(props: {
             <Text style={styles.title}>{notification.title}</Text>
             <Text style={styles.message}>{notification.message}</Text>
             {notification.user && (
-              <Text style={styles.user}>
-                @{notification.user.username}
-              </Text>
+              <Text style={styles.user}>@{notification.user.username}</Text>
             )}
           </View>
         </View>
         <Text style={styles.timestamp}>{timeAgo}</Text>
       </View>
 
-      {!notification.read && (
-        <View style={styles.unreadIndicator} />
-      )}
+      {!notification.read && <View style={styles.unreadIndicator} />}
 
       <View style={styles.actions}>
         <Pressable onPress={onDismiss} style={styles.dismissButton}>

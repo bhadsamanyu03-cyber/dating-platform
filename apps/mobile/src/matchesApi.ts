@@ -15,6 +15,8 @@ export async function matches(token: string, cursor?: string) {
   }>;
 }
 
+export const getMatches = matches;
+
 export async function removeMatch(token: string, matchId: string) {
   const response = await fetch(`${baseUrl}/matches/${matchId}`, {
     method: "DELETE",

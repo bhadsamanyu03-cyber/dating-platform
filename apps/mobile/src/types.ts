@@ -5,6 +5,7 @@ export type DiscoveryProfile = {
   bio: string;
   gender: string;
   pronouns: string | null;
+  age: number;
   height_cm: number | null;
   interests: { id: string; name: string }[];
   profile_completion_percentage: number;

@@ -1,6 +1,13 @@
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { IconSet, IconName, colors, iconNames, spacing, typography } from "../theme";
+import {
+  IconSet,
+  IconName,
+  colors,
+  iconNames,
+  spacing,
+  typography,
+} from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 
 export type EmptyStateProps = {

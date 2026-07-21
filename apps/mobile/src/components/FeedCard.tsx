@@ -1,6 +1,13 @@
 import { memo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, iconNames, IconSet, radii, spacing, typography } from "../theme";
+import {
+  colors,
+  iconNames,
+  IconSet,
+  radii,
+  spacing,
+  typography,
+} from "../theme";
 import { Avatar } from "./Avatar";
 
 export type FeedCardProps = {

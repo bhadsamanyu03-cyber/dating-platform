@@ -15,7 +15,10 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ToastProvider>
-        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={colors.background}
+        />
         <RootNavigator />
       </ToastProvider>
     </SafeAreaProvider>

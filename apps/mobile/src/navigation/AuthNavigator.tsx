@@ -10,7 +10,7 @@ export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Register: undefined;
-  Otp: undefined;
+  Otp: { email: string };
   CreateProfile: undefined;
 };
 

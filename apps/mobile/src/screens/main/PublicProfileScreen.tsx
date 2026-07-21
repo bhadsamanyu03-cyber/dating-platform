@@ -15,11 +15,7 @@ type Props = {
   onClose?: () => void;
 };
 
-export function PublicProfileScreen({
-  accessToken,
-  username,
-  onClose,
-}: Props) {
+export function PublicProfileScreen({ accessToken, username, onClose }: Props) {
   const [profile, setProfile] = useState<DiscoveryProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -32,7 +28,7 @@ export function PublicProfileScreen({
         const data = await getProfile(username, accessToken);
         // Map Profile type to DiscoveryProfile
         const discoveryProfile: DiscoveryProfile = {
-          user_id: data.id ?? "", // Extract from response or generate
+          user_id: data.username,
           username: data.username,
           display_name: data.display_name,
           bio: data.bio,
@@ -41,9 +37,18 @@ export function PublicProfileScreen({
           height_cm: data.height_cm,
           interests: data.interests,
           profile_completion_percentage: data.profile_completion_percentage,
-          age: new Date().getFullYear() -
+          age:
+            new Date().getFullYear() -
             new Date(data.date_of_birth).getFullYear() -
-            (new Date() < new Date(data.date_of_birth.replace(/\d{4}/, String(new Date().getFullYear()))) ? 1 : 0),
+            (new Date() <
+            new Date(
+              data.date_of_birth.replace(
+                /\d{4}/,
+                String(new Date().getFullYear()),
+              ),
+            )
+              ? 1
+              : 0),
         };
         setProfile(discoveryProfile);
       } catch (e) {

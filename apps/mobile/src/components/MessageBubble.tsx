@@ -1,8 +1,16 @@
 import { memo, useEffect, useRef } from "react";
 import { Animated, Image, StyleSheet, Text, View } from "react-native";
-import { colors, iconNames, IconSet, radii, spacing, typography } from "../theme";
+import {
+  colors,
+  iconNames,
+  IconSet,
+  radii,
+  spacing,
+  typography,
+} from "../theme";
 
-export type MessageStatus = "sending" | "sent" | "delivered" | "read" | "failed";
+export type MessageStatus =
+  "sending" | "sent" | "delivered" | "read" | "failed";
 
 export type MessageBubbleProps = {
   text?: string;
@@ -32,9 +40,7 @@ function StatusIcon({ status }: { status?: MessageStatus }) {
       />
     );
   }
-  return (
-    <IconSet name={iconNames.check} size={14} color={colors.text.muted} />
-  );
+  return <IconSet name={iconNames.check} size={14} color={colors.text.muted} />;
 }
 
 function MessageBubbleBase({
@@ -86,9 +92,7 @@ function MessageBubbleBase({
           <Image source={{ uri: imageUri }} style={styles.image} />
         ) : null}
         {text ? (
-          <Text style={isOwn ? styles.textOwn : styles.textOther}>
-            {text}
-          </Text>
+          <Text style={isOwn ? styles.textOwn : styles.textOther}>{text}</Text>
         ) : null}
         <View style={styles.meta}>
           {timeLabel ? <Text style={styles.time}>{timeLabel}</Text> : null}

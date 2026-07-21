@@ -1,4 +1,11 @@
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 const APP_VERSION = "0.1.0";
 const BUILD_NUMBER = "1";
@@ -31,9 +38,9 @@ export function AboutAppScreen({ accessToken }: Props) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <Text style={styles.aboutText}>
-          Corvinth is a modern dating platform designed to help you find meaningful
-          connections. We're committed to creating a safe, respectful, and inclusive
-          community for all users.
+          Corvinth is a modern dating platform designed to help you find
+          meaningful connections. We're committed to creating a safe,
+          respectful, and inclusive community for all users.
         </Text>
       </View>
 
@@ -42,29 +49,17 @@ export function AboutAppScreen({ accessToken }: Props) {
         <LinkItem
           icon="📋"
           title="Terms of Service"
-          onPress={() =>
-            handleOpenLink(
-              "https://example.com/terms"
-            )
-          }
+          onPress={() => handleOpenLink("https://example.com/terms")}
         />
         <LinkItem
           icon="🔐"
           title="Privacy Policy"
-          onPress={() =>
-            handleOpenLink(
-              "https://example.com/privacy"
-            )
-          }
+          onPress={() => handleOpenLink("https://example.com/privacy")}
         />
         <LinkItem
           icon="❤️"
           title="Community Guidelines"
-          onPress={() =>
-            handleOpenLink(
-              "https://example.com/community"
-            )
-          }
+          onPress={() => handleOpenLink("https://example.com/community")}
         />
       </View>
 
@@ -75,7 +70,7 @@ export function AboutAppScreen({ accessToken }: Props) {
           title="Contact Support"
           onPress={() =>
             Linking.openURL(
-              "mailto:support@corvinth.local?subject=Support Request"
+              "mailto:support@corvinth.local?subject=Support Request",
             )
           }
         />
@@ -83,9 +78,7 @@ export function AboutAppScreen({ accessToken }: Props) {
           icon="🐛"
           title="Report a Bug"
           onPress={() =>
-            Linking.openURL(
-              "mailto:bugs@corvinth.local?subject=Bug Report"
-            )
+            Linking.openURL("mailto:bugs@corvinth.local?subject=Bug Report")
           }
         />
         <LinkItem
@@ -93,7 +86,7 @@ export function AboutAppScreen({ accessToken }: Props) {
           title="Send Feedback"
           onPress={() =>
             Linking.openURL(
-              "mailto:feedback@corvinth.local?subject=Feature Feedback"
+              "mailto:feedback@corvinth.local?subject=Feature Feedback",
             )
           }
         />
@@ -140,14 +133,13 @@ export function AboutAppScreen({ accessToken }: Props) {
   );
 }
 
-function LinkItem(props: {
-  icon: string;
-  title: string;
-  onPress: () => void;
-}) {
+function LinkItem(props: { icon: string; title: string; onPress: () => void }) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.linkItem, pressed && styles.linkItemPressed]}
+      style={({ pressed }) => [
+        styles.linkItem,
+        pressed && styles.linkItemPressed,
+      ]}
       onPress={props.onPress}
     >
       <Text style={styles.linkIcon}>{props.icon}</Text>

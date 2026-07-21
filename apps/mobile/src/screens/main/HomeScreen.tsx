@@ -45,9 +45,10 @@ export function HomeScreen({ navigation }: Props) {
   const token = session?.accessToken;
 
   const [suggestions, setSuggestions] = useLoadState<DiscoveryProfile[]>();
-  const [recentConvos, setRecentConvos] = useLoadState<
-    { conversation: Conversation; match: MatchResponse["match"] | null }[]
-  >();
+  const [recentConvos, setRecentConvos] =
+    useLoadState<
+      { conversation: Conversation; match: MatchResponse["match"] | null }[]
+    >();
   const [feedPreview, setFeedPreview] = useLoadState<Post[]>();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -56,9 +57,14 @@ export function HomeScreen({ navigation }: Props) {
 
     setSuggestions({ status: "loading" });
     discovery(token)
-      .then((res) => setSuggestions({ status: "ready", data: res.candidates.slice(0, 6) }))
+      .then((res) =>
+        setSuggestions({ status: "ready", data: res.candidates.slice(0, 6) }),
+      )
       .catch((err) =>
-        setSuggestions({ status: "error", message: err.message ?? "Couldn't load suggestions" }),
+        setSuggestions({
+          status: "error",
+          message: err.message ?? "Couldn't load suggestions",
+        }),
       );
 
     setRecentConvos({ status: "loading" });
@@ -72,14 +78,22 @@ export function HomeScreen({ navigation }: Props) {
         setRecentConvos({ status: "ready", data: rows });
       })
       .catch((err) =>
-        setRecentConvos({ status: "error", message: err.message ?? "Couldn't load conversations" }),
+        setRecentConvos({
+          status: "error",
+          message: err.message ?? "Couldn't load conversations",
+        }),
       );
 
     setFeedPreview({ status: "loading" });
     feed()
-      .then((res) => setFeedPreview({ status: "ready", data: res.posts.slice(0, 2) }))
+      .then((res) =>
+        setFeedPreview({ status: "ready", data: res.posts.slice(0, 2) }),
+      )
       .catch((err) =>
-        setFeedPreview({ status: "error", message: err.message ?? "Couldn't load feed" }),
+        setFeedPreview({
+          status: "error",
+          message: err.message ?? "Couldn't load feed",
+        }),
       );
   }, [token, setSuggestions, setRecentConvos, setFeedPreview]);
 

@@ -20,7 +20,7 @@ export function ProfilePhotosScreen({ accessToken }: Props) {
   // Placeholder for M2 media implementation
   const handleAddPhoto = () => {
     setError(
-      "Photo uploads will be available in the next update (Milestone 2: Profile & Media Foundation)"
+      "Photo uploads will be available in the next update (Milestone 2: Profile & Media Foundation)",
     );
   };
 
@@ -28,19 +28,27 @@ export function ProfilePhotosScreen({ accessToken }: Props) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Your Photos</Text>
       <Text style={styles.description}>
-        Add up to 12 photos to your profile. Your first photo will be your primary profile picture.
+        Add up to 12 photos to your profile. Your first photo will be your
+        primary profile picture.
       </Text>
 
       <View style={styles.featureBox}>
         <Text style={styles.featureTitle}>✨ Coming Soon</Text>
         <Text style={styles.featureText}>
-          Photo uploads and gallery management will be available soon. You'll be able to:
+          Photo uploads and gallery management will be available soon. You'll be
+          able to:
         </Text>
         <View style={styles.featureList}>
-          <Text style={styles.featureBullet}>• Upload JPEG, PNG, WebP, and HEIC photos</Text>
+          <Text style={styles.featureBullet}>
+            • Upload JPEG, PNG, WebP, and HEIC photos
+          </Text>
           <Text style={styles.featureBullet}>• Up to 25 MB per photo</Text>
-          <Text style={styles.featureBullet}>• Automatic image optimization</Text>
-          <Text style={styles.featureBullet}>• Reorder your photos by dragging</Text>
+          <Text style={styles.featureBullet}>
+            • Automatic image optimization
+          </Text>
+          <Text style={styles.featureBullet}>
+            • Reorder your photos by dragging
+          </Text>
           <Text style={styles.featureBullet}>• Delete unwanted photos</Text>
         </View>
       </View>
@@ -54,16 +62,10 @@ export function ProfilePhotosScreen({ accessToken }: Props) {
         ))}
       </View>
 
-      <Text style={styles.info}>
-        {photos.length} of 12 photos uploaded
-      </Text>
+      <Text style={styles.info}>{photos.length} of 12 photos uploaded</Text>
 
       <View style={styles.actions}>
-        <Button
-          title="Add Photo"
-          onPress={handleAddPhoto}
-          color="#1976d2"
-        />
+        <Button title="Add Photo" onPress={handleAddPhoto} color="#1976d2" />
       </View>
 
       {error && (

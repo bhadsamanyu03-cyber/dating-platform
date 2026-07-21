@@ -1,6 +1,13 @@
 import { memo } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
-import { colors, iconNames, IconSet, radii, spacing, typography } from "../theme";
+import {
+  colors,
+  iconNames,
+  IconSet,
+  radii,
+  spacing,
+  typography,
+} from "../theme";
 
 export type SearchBarProps = {
   value: string;

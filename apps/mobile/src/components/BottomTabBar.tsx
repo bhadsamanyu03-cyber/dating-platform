@@ -1,15 +1,29 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, iconNames, IconName, IconSet, spacing, typography } from "../theme";
+import {
+  colors,
+  iconNames,
+  IconName,
+  IconSet,
+  spacing,
+  typography,
+} from "../theme";
 
 export type BottomTabItem = {
   key: string;
   label: string;
-  icon: Extract<IconName, "home" | "discover" | "feed" | "messages" | "profile">;
+  icon: Extract<
+    IconName,
+    "home" | "discover" | "feed" | "messages" | "profile"
+  >;
   activeIcon: Extract<
     IconName,
-    "homeActive" | "discoverActive" | "feedActive" | "messagesActive" | "profileActive"
+    | "homeActive"
+    | "discoverActive"
+    | "feedActive"
+    | "messagesActive"
+    | "profileActive"
   >;
   badgeCount?: number;
 };
@@ -24,7 +38,12 @@ function BottomTabBarBase({ items, activeKey, onSelect }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.xs) }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingBottom: Math.max(insets.bottom, spacing.xs) },
+      ]}
+    >
       {items.map((item) => {
         const active = item.key === activeKey;
         return (

@@ -1,6 +1,13 @@
 import { memo } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
-import { colors, iconNames, IconSet, radii, spacing, typography } from "../theme";
+import {
+  colors,
+  iconNames,
+  IconSet,
+  radii,
+  spacing,
+  typography,
+} from "../theme";
 import { GlassCard } from "./GlassCard";
 import { Chip } from "./Chip";
 

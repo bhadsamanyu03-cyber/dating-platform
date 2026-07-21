@@ -48,7 +48,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
-        }).start(() => setToast((current) => (current?.id === id ? null : current)));
+        }).start(() =>
+          setToast((current) => (current?.id === id ? null : current)),
+        );
       }, 2600);
     },
     [opacity],
@@ -60,10 +62,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {toast ? (
         <Animated.View
           pointerEvents="none"
-          style={[
-            styles.container,
-            { top: insets.top + spacing.xs, opacity },
-          ]}
+          style={[styles.container, { top: insets.top + spacing.xs, opacity }]}
         >
           <View
             style={[styles.toast, { borderColor: variantColor[toast.variant] }]}
