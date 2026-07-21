@@ -8,6 +8,7 @@ from app.domain.discovery.scoring import RecommendationScorer
 from app.domain.identity.models import User
 from app.domain.matching.service import MatchService
 from app.domain.profile.schemas import InterestResponse
+from app.domain.notifications.service import NotificationService
 
 
 class DiscoveryError(Exception):
@@ -37,17 +38,26 @@ class RankingStrategy:
 
 
 class DiscoveryService:
-    def __init__(self, db: AsyncSession, ranking: RankingStrategy | None = None, scorer: RecommendationScorer | None = None):
+    def __init__(
+        self,
+        db: AsyncSession,
+        ranking: RankingStrategy | None = None,
+        scorer: RecommendationScorer | None = None,
+    ):
         self.db, self.repo, self.ranking = db, DiscoveryRepository(db), ranking or RankingStrategy()
         self.scorer = scorer or RecommendationScorer()
         self.matching = MatchService(db)
 
-    async def discover(self, user: User, cursor: str | None, limit: int, filters: DiscoveryFilters | None = None) -> DiscoveryPage:
+    async def discover(
+        self, user: User, cursor: str | None, limit: int, filters: DiscoveryFilters | None = None
+    ) -> DiscoveryPage:
         own = await self.repo.profile_for_user(user.id)
         if not own or own.profile_completion_percentage < 100:
             raise DiscoveryError("Complete your profile before discovery", 403)
         keyset = decode_cursor(cursor)
-        rows = await self.repo.candidates(user.id, [i.id for i in own.interests], keyset, limit, filters or DiscoveryFilters())
+        rows = await self.repo.candidates(
+            user.id, [i.id for i in own.interests], keyset, limit, filters or DiscoveryFilters()
+        )
         has_more = len(rows) > limit
         return DiscoveryPage(
             candidates=[self.ranking.profile(row) for row, _ in rows[:limit]],
@@ -67,9 +77,18 @@ class DiscoveryService:
             raise DiscoveryError("You cannot act on your own profile", 422)
         if not await self.repo.target_exists(target):
             raise DiscoveryError("Profile not found", 404)
-        await self.repo.record(model, user.id, target, commit=False)
+        created = await self.repo.record(model, user.id, target, commit=False)
         if model is ProfileLike:
-            await self.matching.synchronize_after_like(user.id, target)
+            if created:
+                await NotificationService(self.db).create(target, user.id, "LIKE", {})
+            match = await self.matching.synchronize_after_like(user.id, target)
+            if match:
+                await NotificationService(self.db).create(
+                    target, user.id, "MATCH", {"match_id": str(match.id)}
+                )
+                await NotificationService(self.db).create(
+                    user.id, target, "MATCH", {"match_id": str(match.id)}
+                )
         await self.db.commit()
 
     async def like(self, user: User, target: UUID) -> None:

@@ -36,6 +36,18 @@ class MessagingRepository:
             )
         )
 
+    async def recipient_for_conversation(
+        self, conversation_id: UUID, sender_id: UUID
+    ) -> UUID | None:
+        match = await self.db.scalar(
+            select(Match)
+            .join(Conversation, Conversation.match_id == Match.id)
+            .where(Conversation.id == conversation_id)
+        )
+        if not match:
+            return None
+        return match.user_two_id if match.user_one_id == sender_id else match.user_one_id
+
     async def list_for_user(self, user_id: UUID, limit: int):
         return list(
             (

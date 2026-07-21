@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.messaging.models import Message
 from app.domain.messaging.events import MessageImageUploaded
 from app.domain.messaging.repository import MessagingRepository
+from app.domain.notifications.service import NotificationService
 from app.domain.messaging.schemas import (
     ConversationPage,
     ConversationResponse,
@@ -101,6 +102,14 @@ class MessagingService:
         )
         if payload.media_asset_ids:
             self.events.append(MessageImageUploaded(message_id=message.id))
+        recipient_id = await self.repo.recipient_for_conversation(conversation_id, user_id)
+        if recipient_id:
+            await NotificationService(self.db).create(
+                recipient_id,
+                user_id,
+                "MESSAGE",
+                {"conversation_id": str(conversation_id), "message_id": str(message.id)},
+            )
         await self.db.commit()
         return self.message_response(message)
 

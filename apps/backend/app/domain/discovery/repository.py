@@ -142,12 +142,15 @@ class DiscoveryRepository:
             )
         return [(row[0], row[1]) for row in (await self.db.execute(query)).all()]
 
-    async def record(self, model, actor: UUID, target: UUID, commit: bool = True) -> None:
+    async def record(self, model, actor: UUID, target: UUID, commit: bool = True) -> bool:
         values = (
             {"liker_user_id": actor, "liked_user_id": target}
             if model is ProfileLike
             else {"passer_user_id": actor, "passed_user_id": target}
         )
-        await self.db.execute(insert(model).values(**values).on_conflict_do_nothing())
+        result = await self.db.execute(
+            insert(model).values(**values).on_conflict_do_nothing().returning(model.id)
+        )
         if commit:
             await self.db.commit()
+        return result.scalar_one_or_none() is not None
