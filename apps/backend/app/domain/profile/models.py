@@ -1,6 +1,6 @@
 import uuid
 from datetime import date, datetime
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String, Table, Text, func
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Table, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.domain.identity.models import Base
@@ -47,6 +47,7 @@ class UserProfile(Base):
     height_cm: Mapped[int | None] = mapped_column(Integer)
     profile_photo_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     profile_video_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_discoverable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     profile_completion_percentage: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 from app.api.auth import current_user
 from app.api.dependencies import get_database_session
 from app.domain.identity.models import User

@@ -1,11 +1,13 @@
 import base64
 from uuid import UUID
-from sqlalchemy import exists, func, select
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domain.discovery.models import ProfileLike, ProfilePass
+from app.domain.discovery.models import ProfileBlock, ProfileLike, ProfilePass
 from app.domain.identity.models import User
+from app.domain.matching.models import Match
 from app.domain.profile.models import UserProfile, profile_interests
+from app.domain.discovery.schemas import DiscoveryFilters
 
 
 def decode_cursor(cursor: str | None) -> tuple[int, int, str] | None:
@@ -48,6 +50,7 @@ class DiscoveryRepository:
         interest_ids: list[UUID],
         cursor: tuple[int, int, str] | None,
         limit: int,
+        filters: DiscoveryFilters,
     ) -> list[tuple[UserProfile, int]]:
         shared = (
             select(func.count())
@@ -64,10 +67,25 @@ class DiscoveryRepository:
         passed = exists().where(
             ProfilePass.passer_user_id == user_id, ProfilePass.passed_user_id == UserProfile.user_id
         )
+        blocked = exists().where(
+            or_(
+                and_(ProfileBlock.blocker_user_id == user_id, ProfileBlock.blocked_user_id == UserProfile.user_id),
+                and_(ProfileBlock.blocker_user_id == UserProfile.user_id, ProfileBlock.blocked_user_id == user_id),
+            )
+        )
+        matched = exists().where(
+            or_(
+                and_(Match.user_one_id == user_id, Match.user_two_id == UserProfile.user_id),
+                and_(Match.user_two_id == user_id, Match.user_one_id == UserProfile.user_id),
+            )
+        )
+        age = func.extract("year", func.age(func.current_date(), UserProfile.date_of_birth))
         query = (
             select(UserProfile, shared.label("shared_count"))
             .where(
                 UserProfile.user_id != user_id,
+                UserProfile.is_discoverable.is_(True),
+                UserProfile.profile_completion_percentage >= filters.minimum_profile_completion,
                 exists().where(
                     User.id == UserProfile.user_id,
                     User.is_active.is_(True),
@@ -75,6 +93,8 @@ class DiscoveryRepository:
                 ),
                 ~liked,
                 ~passed,
+                ~blocked,
+                ~matched,
             )
             .order_by(
                 shared.desc(),
@@ -83,6 +103,16 @@ class DiscoveryRepository:
             )
             .limit(limit + 1)
         )
+        if filters.gender:
+            query = query.where(UserProfile.gender == filters.gender)
+        if filters.min_age is not None:
+            query = query.where(age >= filters.min_age)
+        if filters.max_age is not None:
+            query = query.where(age <= filters.max_age)
+        if filters.verified_only:
+            query = query.where(
+                exists().where(User.id == UserProfile.user_id, User.is_email_verified.is_(True))
+            )
         if cursor:
             shared_count, completion, username = cursor
             query = query.where(

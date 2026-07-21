@@ -3,7 +3,8 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.discovery.models import ProfileLike, ProfilePass
 from app.domain.discovery.repository import DiscoveryRepository, decode_cursor, encode_cursor
-from app.domain.discovery.schemas import DiscoveryPage, DiscoveryProfile
+from app.domain.discovery.schemas import DiscoveryFilters, DiscoveryPage, DiscoveryProfile
+from app.domain.discovery.scoring import RecommendationScorer
 from app.domain.identity.models import User
 from app.domain.matching.service import MatchService
 from app.domain.profile.schemas import InterestResponse
@@ -36,16 +37,17 @@ class RankingStrategy:
 
 
 class DiscoveryService:
-    def __init__(self, db: AsyncSession, ranking: RankingStrategy | None = None):
+    def __init__(self, db: AsyncSession, ranking: RankingStrategy | None = None, scorer: RecommendationScorer | None = None):
         self.db, self.repo, self.ranking = db, DiscoveryRepository(db), ranking or RankingStrategy()
+        self.scorer = scorer or RecommendationScorer()
         self.matching = MatchService(db)
 
-    async def discover(self, user: User, cursor: str | None, limit: int) -> DiscoveryPage:
+    async def discover(self, user: User, cursor: str | None, limit: int, filters: DiscoveryFilters | None = None) -> DiscoveryPage:
         own = await self.repo.profile_for_user(user.id)
         if not own or own.profile_completion_percentage < 100:
             raise DiscoveryError("Complete your profile before discovery", 403)
         keyset = decode_cursor(cursor)
-        rows = await self.repo.candidates(user.id, [i.id for i in own.interests], keyset, limit)
+        rows = await self.repo.candidates(user.id, [i.id for i in own.interests], keyset, limit, filters or DiscoveryFilters())
         has_more = len(rows) > limit
         return DiscoveryPage(
             candidates=[self.ranking.profile(row) for row, _ in rows[:limit]],
