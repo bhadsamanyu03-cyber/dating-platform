@@ -1,5 +1,5 @@
 from uuid import UUID
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.media.models import MediaAsset
 from app.domain.profile.models import Interest, ProfilePhoto, UserProfile
@@ -42,5 +42,21 @@ class ProfileRepository:
 
     async def photo(self, profile_id: UUID, photo_id: UUID) -> ProfilePhoto | None:
         return await self.db.scalar(
-            select(ProfilePhoto).where(ProfilePhoto.profile_id == profile_id, ProfilePhoto.id == photo_id)
+            select(ProfilePhoto).where(
+                ProfilePhoto.profile_id == profile_id, ProfilePhoto.id == photo_id
+            )
+        )
+
+    async def primary_photo(self, profile_id: UUID) -> ProfilePhoto | None:
+        return await self.db.scalar(
+            select(ProfilePhoto).where(
+                ProfilePhoto.profile_id == profile_id, ProfilePhoto.is_primary.is_(True)
+            )
+        )
+
+    async def clear_primary(self, profile_id: UUID) -> None:
+        await self.db.execute(
+            update(ProfilePhoto)
+            .where(ProfilePhoto.profile_id == profile_id, ProfilePhoto.is_primary.is_(True))
+            .values(is_primary=False)
         )

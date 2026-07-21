@@ -66,9 +66,63 @@ class ProfileService:
             raise ProfileError("A profile can have at most 12 photos", 422)
         if any(photo.media_asset_id == asset_id for photo in photos):
             raise ProfileError("Photo is already attached", 409)
-        photo = ProfilePhoto(profile_id=profile.id, media_asset_id=asset_id, ordering=ordering)
+        insertion_order = min(ordering, len(photos))
+        for existing in photos:
+            if existing.ordering >= insertion_order:
+                existing.ordering += 1
+        photo = ProfilePhoto(
+            profile_id=profile.id,
+            media_asset_id=asset_id,
+            ordering=insertion_order,
+            is_primary=not photos,
+        )
         self.db.add(photo)
         profile.profile_photo_count = len(photos) + 1
         await self.db.commit()
         await self.db.refresh(photo)
         return photo
+
+    async def reorder_photos(self, user: User, photo_ids: list) -> list[ProfilePhoto]:
+        profile = await self.repo.by_user(user.id)
+        if not profile:
+            raise ProfileError("Profile not found", 404)
+        photos = await self.repo.photos(profile.id)
+        if {photo.id for photo in photos} != set(photo_ids):
+            raise ProfileError("Photo order must include every profile photo", 422)
+        by_id = {photo.id: photo for photo in photos}
+        for ordering, photo_id in enumerate(photo_ids):
+            by_id[photo_id].ordering = ordering
+        await self.db.commit()
+        return await self.repo.photos(profile.id)
+
+    async def set_primary_photo(self, user: User, photo_id) -> ProfilePhoto:
+        profile = await self.repo.by_user(user.id)
+        if not profile:
+            raise ProfileError("Profile not found", 404)
+        photo = await self.repo.photo(profile.id, photo_id)
+        if not photo:
+            raise ProfileError("Profile photo not found", 404)
+        await self.repo.clear_primary(profile.id)
+        photo.is_primary = True
+        await self.db.commit()
+        await self.db.refresh(photo)
+        return photo
+
+    async def delete_photo(self, user: User, photo_id) -> list[ProfilePhoto]:
+        profile = await self.repo.by_user(user.id)
+        if not profile:
+            raise ProfileError("Profile not found", 404)
+        photo = await self.repo.photo(profile.id, photo_id)
+        if not photo:
+            raise ProfileError("Profile photo not found", 404)
+        was_primary = photo.is_primary
+        await self.db.delete(photo)
+        await self.db.flush()
+        photos = await self.repo.photos(profile.id)
+        for ordering, remaining in enumerate(photos):
+            remaining.ordering = ordering
+        if was_primary and photos:
+            photos[0].is_primary = True
+        profile.profile_photo_count = len(photos)
+        await self.db.commit()
+        return await self.repo.photos(profile.id)

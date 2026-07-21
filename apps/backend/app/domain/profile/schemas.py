@@ -66,4 +66,16 @@ class ProfilePhotoResponse(BaseModel):
     id: UUID
     media_asset_id: UUID
     ordering: int
+    is_primary: bool
     created_at: datetime
+
+
+class ProfilePhotoReorder(BaseModel):
+    photo_ids: list[UUID] = Field(min_length=1, max_length=12)
+
+    @field_validator("photo_ids")
+    @classmethod
+    def unique_photo_ids(cls, value: list[UUID]) -> list[UUID]:
+        if len(set(value)) != len(value):
+            raise ValueError("Photo ids must be unique")
+        return value

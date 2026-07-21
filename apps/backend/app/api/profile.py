@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
@@ -13,6 +13,7 @@ from app.domain.profile.schemas import (
     UsernameAvailability,
     ProfilePhotoCreate,
     ProfilePhotoResponse,
+    ProfilePhotoReorder,
 )
 from app.domain.profile.service import ProfileError, ProfileService
 from app.core.config import get_settings
@@ -47,6 +48,7 @@ def photo_output(photo) -> ProfilePhotoResponse:
         id=photo.id,
         media_asset_id=photo.media_asset_id,
         ordering=photo.ordering,
+        is_primary=photo.is_primary,
         created_at=photo.created_at,
     )
 
@@ -99,6 +101,56 @@ async def add_photo(
         )
     except ProfileError as exc:
         raise HTTPException(exc.status_code, exc.message) from exc
+
+
+@profile_router.get("/me/photos", response_model=list[ProfilePhotoResponse])
+async def own_photos(
+    user: User = Depends(current_user), db: AsyncSession = Depends(get_database_session)
+) -> list[ProfilePhotoResponse]:
+    profile = await ProfileRepository(db).by_user(user.id)
+    if not profile:
+        raise HTTPException(404, "Profile not found")
+    return [photo_output(photo) for photo in await ProfileRepository(db).photos(profile.id)]
+
+
+@profile_router.patch("/me/photos/reorder", response_model=list[ProfilePhotoResponse])
+async def reorder_photos(
+    payload: ProfilePhotoReorder,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+) -> list[ProfilePhotoResponse]:
+    try:
+        return [
+            photo_output(photo)
+            for photo in await ProfileService(db).reorder_photos(user, payload.photo_ids)
+        ]
+    except ProfileError as exc:
+        raise HTTPException(exc.status_code, exc.message) from exc
+
+
+@profile_router.patch("/me/photos/{photo_id}/primary", response_model=ProfilePhotoResponse)
+async def set_primary_photo(
+    photo_id: UUID,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+) -> ProfilePhotoResponse:
+    try:
+        return photo_output(await ProfileService(db).set_primary_photo(user, photo_id))
+    except ProfileError as exc:
+        raise HTTPException(exc.status_code, exc.message) from exc
+
+
+@profile_router.delete("/me/photos/{photo_id}", status_code=204)
+async def delete_photo(
+    photo_id: UUID,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+) -> Response:
+    try:
+        await ProfileService(db).delete_photo(user, photo_id)
+    except ProfileError as exc:
+        raise HTTPException(exc.status_code, exc.message) from exc
+    return Response(status_code=204)
 
 
 @profile_router.get("/{username}/photos", response_model=list[ProfilePhotoResponse])
