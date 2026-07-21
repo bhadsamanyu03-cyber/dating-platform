@@ -38,6 +38,7 @@ def auth_service(
 async def current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     service: IdentityService = Depends(auth_service),
+    request: Request = None,
 ) -> User:
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(
@@ -46,7 +47,14 @@ async def current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        return await service.authenticated_user(credentials.credentials)
+        user = await service.authenticated_user(credentials.credentials)
+        try:
+            from app.domain.presence.service import PresenceService
+
+            await PresenceService(service.db).touch(user.id)
+        except Exception:
+            pass
+        return user
     except AuthError as exc:
         raise HTTPException(
             status_code=exc.status_code, detail=exc.message, headers={"WWW-Authenticate": "Bearer"}

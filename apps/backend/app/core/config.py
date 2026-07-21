@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     s3_access_key_id: str
     s3_secret_access_key: SecretStr
     media_storage_path: Path = Path("/tmp/dating-platform-media")
+    presence_away_seconds: int = Field(default=300, ge=10, le=3600)
+    presence_offline_seconds: int = Field(default=900, ge=30, le=86400)
+    typing_ttl_seconds: int = Field(default=8, ge=2, le=60)
 
     @model_validator(mode="after")
     def validate_production(self) -> "Settings":

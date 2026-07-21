@@ -10,6 +10,7 @@ from app.domain.messaging.models import Message
 from app.domain.messaging.events import MessageImageUploaded
 from app.domain.messaging.repository import MessagingRepository
 from app.domain.notifications.service import NotificationService
+from app.domain.presence.service import PresenceService
 from app.domain.messaging.schemas import (
     ConversationPage,
     ConversationResponse,
@@ -58,10 +59,22 @@ class MessagingService:
     async def list(self, user_id: UUID):
         return ConversationPage(
             conversations=[
-                ConversationResponse(id=x.id, match_id=x.match_id, created_at=x.created_at)
+                await self.conversation_response(x, user_id)
                 for x in await self.repo.list_for_user(user_id, 50)
             ],
             next_cursor=None,
+        )
+
+    async def conversation_response(self, value, user_id: UUID) -> ConversationResponse:
+        participant_id = await self.repo.recipient_for_conversation(value.id, user_id)
+        return ConversationResponse(
+            id=value.id,
+            match_id=value.match_id,
+            created_at=value.created_at,
+            participant_id=participant_id,
+            participant_presence=(
+                (await PresenceService(self.db).get(participant_id)) if participant_id else None
+            ),
         )
 
     def message_response(self, value: Message):

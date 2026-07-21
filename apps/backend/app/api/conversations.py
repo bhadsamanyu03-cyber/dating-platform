@@ -15,6 +15,8 @@ from app.domain.messaging.schemas import (
 from app.domain.messaging.service import MessagingError, MessagingService
 from app.domain.media.storage import LocalStorageProvider
 from app.core.config import get_settings
+from app.api.dependencies import get_redis
+from app.domain.presence.service import TypingService
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 message_router = APIRouter(prefix="/messages", tags=["messages"])
@@ -39,9 +41,7 @@ async def get_conversation(
 ):
     try:
         value = await MessagingService(db).conversation(conversation_id, user.id)
-        return ConversationResponse(
-            id=value.id, match_id=value.match_id, created_at=value.created_at
-        )
+        return await MessagingService(db).conversation_response(value, user.id)
     except MessagingError as exc:
         raise error(exc) from exc
 
@@ -116,3 +116,33 @@ async def send_message(
         return await MessagingService(db).send(conversation_id, user.id, payload)
     except MessagingError as exc:
         raise error(exc) from exc
+
+
+@router.post("/{conversation_id}/typing/start", status_code=204)
+async def start_typing(
+    conversation_id: UUID,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+    redis=Depends(get_redis),
+) -> Response:
+    try:
+        await MessagingService(db).conversation(conversation_id, user.id)
+    except MessagingError as exc:
+        raise error(exc) from exc
+    await TypingService(redis).start(conversation_id, user.id)
+    return Response(status_code=204)
+
+
+@router.post("/{conversation_id}/typing/stop", status_code=204)
+async def stop_typing(
+    conversation_id: UUID,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+    redis=Depends(get_redis),
+) -> Response:
+    try:
+        await MessagingService(db).conversation(conversation_id, user.id)
+    except MessagingError as exc:
+        raise error(exc) from exc
+    await TypingService(redis).stop(conversation_id, user.id)
+    return Response(status_code=204)

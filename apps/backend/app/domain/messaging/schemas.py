@@ -2,6 +2,8 @@ from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field, model_validator
 
+from app.domain.presence.schemas import PresenceResponse
+
 
 class MessageCreate(BaseModel):
     message_type: str = "TEXT"
@@ -58,6 +60,8 @@ class ConversationResponse(BaseModel):
     id: UUID
     match_id: UUID
     created_at: datetime
+    participant_id: UUID | None = None
+    participant_presence: PresenceResponse | None = None
 
 
 class ConversationPage(BaseModel):
