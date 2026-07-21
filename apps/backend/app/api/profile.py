@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import current_user
 from app.api.dependencies import get_database_session
@@ -9,8 +10,12 @@ from app.domain.profile.schemas import (
     ProfileResponse,
     ProfileUpdate,
     UsernameAvailability,
+    ProfilePhotoCreate,
+    ProfilePhotoResponse,
 )
 from app.domain.profile.service import ProfileError, ProfileService
+from app.core.config import get_settings
+from app.domain.media.storage import LocalStorageProvider
 
 profile_router = APIRouter(prefix="/profile", tags=["profile"])
 interests_router = APIRouter(prefix="/interests", tags=["interests"])
@@ -34,6 +39,15 @@ def output(profile) -> ProfileResponse:
     )
 
 
+def photo_output(photo) -> ProfilePhotoResponse:
+    return ProfilePhotoResponse(
+        id=photo.id,
+        media_asset_id=photo.media_asset_id,
+        ordering=photo.ordering,
+        created_at=photo.created_at,
+    )
+
+
 @profile_router.get("/me", response_model=ProfileResponse)
 async def me(user: User = Depends(current_user), db: AsyncSession = Depends(get_database_session)):
     profile = await ProfileRepository(db).by_user(user.id)
@@ -52,6 +66,53 @@ async def update(
         return output(await ProfileService(db).update(user, payload))
     except ProfileError as exc:
         raise HTTPException(exc.status_code, exc.message) from exc
+
+
+@profile_router.post("/me/photos", response_model=ProfilePhotoResponse, status_code=201)
+async def add_photo(
+    payload: ProfilePhotoCreate,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+) -> ProfilePhotoResponse:
+    try:
+        return photo_output(await ProfileService(db).add_photo(user, payload.media_asset_id, payload.ordering))
+    except ProfileError as exc:
+        raise HTTPException(exc.status_code, exc.message) from exc
+
+
+@profile_router.get("/{username}/photos", response_model=list[ProfilePhotoResponse])
+async def photos(
+    username: str,
+    _: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+) -> list[ProfilePhotoResponse]:
+    profile = await ProfileRepository(db).by_username(username)
+    if not profile:
+        raise HTTPException(404, "Profile not found")
+    return [photo_output(photo) for photo in await ProfileRepository(db).photos(profile.id)]
+
+
+@profile_router.get("/{username}/photos/{photo_id}")
+async def download_photo(
+    username: str,
+    photo_id: UUID,
+    _: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+) -> StreamingResponse:
+    repository = ProfileRepository(db)
+    profile = await repository.by_username(username)
+    if not profile:
+        raise HTTPException(404, "Profile not found")
+    photo = await repository.photo(profile.id, photo_id)
+    if not photo:
+        raise HTTPException(404, "Profile photo not found")
+    asset = await repository.owned_image_asset(photo.media_asset_id, profile.user_id)
+    if not asset:
+        raise HTTPException(404, "Profile photo not found")
+    return StreamingResponse(
+        LocalStorageProvider(get_settings().media_storage_path).download(asset.storage_key),
+        media_type=asset.mime_type,
+    )
 
 
 @profile_router.get("/check-username", response_model=UsernameAvailability)

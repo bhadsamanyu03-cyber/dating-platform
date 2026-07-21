@@ -1,6 +1,6 @@
 import uuid
 from datetime import date, datetime
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Table, Text, func
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String, Table, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.domain.identity.models import Base
@@ -55,3 +55,23 @@ class UserProfile(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
     interests: Mapped[list[Interest]] = relationship(secondary=profile_interests, lazy="selectin")
+    photos: Mapped[list["ProfilePhoto"]] = relationship(
+        order_by="ProfilePhoto.ordering", cascade="all, delete-orphan"
+    )
+
+
+class ProfilePhoto(Base):
+    __tablename__ = "profile_photos"
+    __table_args__ = (
+        Index("uq_profile_photos_profile_asset", "profile_id", "media_asset_id", unique=True),
+        Index("ix_profile_photos_profile_ordering", "profile_id", "ordering"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("user_profiles.id", ondelete="CASCADE")
+    )
+    media_asset_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="RESTRICT")
+    )
+    ordering: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

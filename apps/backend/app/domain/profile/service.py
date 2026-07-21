@@ -1,7 +1,7 @@
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.identity.models import User
-from app.domain.profile.models import UserProfile
+from app.domain.profile.models import ProfilePhoto, UserProfile
 from app.domain.profile.repository import ProfileRepository
 from app.domain.profile.schemas import ProfileUpdate
 
@@ -54,3 +54,21 @@ class ProfileService:
         await self.db.commit()
         await self.db.refresh(profile)
         return profile
+
+    async def add_photo(self, user: User, asset_id, ordering: int) -> ProfilePhoto:
+        profile = await self.repo.by_user(user.id)
+        if not profile:
+            raise ProfileError("Profile not found", 404)
+        if not await self.repo.owned_image_asset(asset_id, user.id):
+            raise ProfileError("Image media asset not found", 422)
+        photos = await self.repo.photos(profile.id)
+        if len(photos) >= 12:
+            raise ProfileError("A profile can have at most 12 photos", 422)
+        if any(photo.media_asset_id == asset_id for photo in photos):
+            raise ProfileError("Photo is already attached", 409)
+        photo = ProfilePhoto(profile_id=profile.id, media_asset_id=asset_id, ordering=ordering)
+        self.db.add(photo)
+        profile.profile_photo_count = len(photos) + 1
+        await self.db.commit()
+        await self.db.refresh(photo)
+        return photo

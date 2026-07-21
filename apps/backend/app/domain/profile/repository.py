@@ -1,7 +1,8 @@
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domain.profile.models import Interest, UserProfile
+from app.domain.media.models import MediaAsset
+from app.domain.profile.models import Interest, ProfilePhoto, UserProfile
 
 
 class ProfileRepository:
@@ -19,3 +20,27 @@ class ProfileRepository:
         if ids is not None:
             query = query.where(Interest.id.in_(ids))
         return list(await self.db.scalars(query))
+
+    async def owned_image_asset(self, asset_id: UUID, user_id: UUID) -> MediaAsset | None:
+        return await self.db.scalar(
+            select(MediaAsset).where(
+                MediaAsset.id == asset_id,
+                MediaAsset.owner_user_id == user_id,
+                MediaAsset.media_type == "IMAGE",
+                MediaAsset.upload_status == "UPLOADED",
+            )
+        )
+
+    async def photos(self, profile_id: UUID) -> list[ProfilePhoto]:
+        return list(
+            await self.db.scalars(
+                select(ProfilePhoto)
+                .where(ProfilePhoto.profile_id == profile_id)
+                .order_by(ProfilePhoto.ordering, ProfilePhoto.created_at)
+            )
+        )
+
+    async def photo(self, profile_id: UUID, photo_id: UUID) -> ProfilePhoto | None:
+        return await self.db.scalar(
+            select(ProfilePhoto).where(ProfilePhoto.profile_id == profile_id, ProfilePhoto.id == photo_id)
+        )

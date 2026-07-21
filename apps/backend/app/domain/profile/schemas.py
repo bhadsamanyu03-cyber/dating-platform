@@ -55,3 +55,15 @@ class ProfileResponse(BaseModel):
 class UsernameAvailability(BaseModel):
     username: str
     available: bool
+
+
+class ProfilePhotoCreate(BaseModel):
+    media_asset_id: UUID
+    ordering: int = Field(default=0, ge=0, le=11)
+
+
+class ProfilePhotoResponse(BaseModel):
+    id: UUID
+    media_asset_id: UUID
+    ordering: int
+    created_at: datetime
