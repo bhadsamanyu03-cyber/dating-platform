@@ -8,5 +8,9 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx"
   },
-  "include": ["App.tsx", "src"]
+  "include": [
+    "App.tsx",
+    "src"
+  ],
+  "extends": "expo/tsconfig.base"
 }
