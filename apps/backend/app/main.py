@@ -13,6 +13,7 @@ from app.api.conversations import message_router, router as conversations_router
 from app.api.feed import router as feed_router
 from app.api.search import router as search_router
 from app.api.notifications import router as notifications_router
+from app.api.reports import router as reports_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.infrastructure.database import create_database_engine
@@ -57,6 +58,7 @@ def create_app() -> FastAPI:
     app.include_router(feed_router, prefix=settings.api_prefix)
     app.include_router(search_router, prefix=settings.api_prefix)
     app.include_router(notifications_router, prefix=settings.api_prefix)
+    app.include_router(reports_router, prefix=settings.api_prefix)
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(_, __):
