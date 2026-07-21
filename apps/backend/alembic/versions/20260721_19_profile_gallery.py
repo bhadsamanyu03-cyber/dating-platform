@@ -10,7 +10,8 @@ branch_labels = depends_on = None
 
 def upgrade():
     op.add_column(
-        "profile_photos", sa.Column("is_primary", sa.Boolean(), nullable=False, server_default=sa.false())
+        "profile_photos",
+        sa.Column("is_primary", sa.Boolean(), nullable=False, server_default=sa.false()),
     )
     op.execute(
         "CREATE UNIQUE INDEX uq_profile_photos_primary ON profile_photos (profile_id) "

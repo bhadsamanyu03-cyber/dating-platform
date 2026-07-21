@@ -13,8 +13,18 @@ def upgrade():
     op.create_table(
         "post_likes",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("post_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("posts.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "post_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("posts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.UniqueConstraint("post_id", "user_id", name="uq_post_like"),
     )
@@ -23,14 +33,26 @@ def upgrade():
     op.create_table(
         "post_comments",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("post_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("posts.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("author_user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "post_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("posts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "author_user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("body", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.Column("deleted_at", sa.DateTime(timezone=True)),
     )
-    op.create_index("ix_post_comments_post_created", "post_comments", ["post_id", "created_at", "id"])
+    op.create_index(
+        "ix_post_comments_post_created", "post_comments", ["post_id", "created_at", "id"]
+    )
     op.create_index("ix_post_comments_author", "post_comments", ["author_user_id"])
 
 

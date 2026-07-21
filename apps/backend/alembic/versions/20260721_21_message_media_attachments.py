@@ -10,9 +10,12 @@ branch_labels = depends_on = None
 
 def upgrade():
     op.add_column(
-        "message_media", sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"))
+        "message_media",
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
     )
-    op.execute("UPDATE media_assets SET processing_state = 'READY' WHERE upload_status = 'UPLOADED'")
+    op.execute(
+        "UPDATE media_assets SET processing_state = 'READY' WHERE upload_status = 'UPLOADED'"
+    )
 
 
 def downgrade():
