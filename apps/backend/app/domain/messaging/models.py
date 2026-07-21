@@ -26,7 +26,9 @@ class Message(Base):
         Index("ix_messages_conversation_created", "conversation_id", "created_at", "id"),
         Index("ix_messages_sender", "sender_user_id"),
         Index("ix_messages_created", "created_at"),
-        Index("uq_messages_sender_client_message", "sender_user_id", "client_message_id", unique=True),
+        Index(
+            "uq_messages_sender_client_message", "sender_user_id", "client_message_id", unique=True
+        ),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     conversation_id: Mapped[uuid.UUID] = mapped_column(

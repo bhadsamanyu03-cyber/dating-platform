@@ -62,7 +62,9 @@ async def list_messages(
 
 @message_router.get("/{message_id}", response_model=MessageResponse)
 async def get_message(
-    message_id: UUID, user: User = Depends(current_user), db: AsyncSession = Depends(get_database_session)
+    message_id: UUID,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
 ):
     try:
         return await MessagingService(db).message(message_id, user.id)
@@ -72,7 +74,9 @@ async def get_message(
 
 @message_router.delete("/{message_id}", status_code=204)
 async def delete_message(
-    message_id: UUID, user: User = Depends(current_user), db: AsyncSession = Depends(get_database_session)
+    message_id: UUID,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
 ) -> Response:
     try:
         await MessagingService(db).delete(message_id, user.id)
@@ -83,11 +87,17 @@ async def delete_message(
 
 @message_router.get("/{message_id}/media/{asset_id}")
 async def download_attachment(
-    message_id: UUID, asset_id: UUID, user: User = Depends(current_user), db: AsyncSession = Depends(get_database_session)
+    message_id: UUID,
+    asset_id: UUID,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
 ) -> StreamingResponse:
     try:
         asset = await MessagingService(db).attachment(message_id, asset_id, user.id)
-        return StreamingResponse(LocalStorageProvider(get_settings().media_storage_path).download(asset.storage_key), media_type=asset.mime_type)
+        return StreamingResponse(
+            LocalStorageProvider(get_settings().media_storage_path).download(asset.storage_key),
+            media_type=asset.mime_type,
+        )
     except MessagingError as exc:
         raise error(exc) from exc
 

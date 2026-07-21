@@ -13,7 +13,9 @@ def test_message_requires_content() -> None:
 
 
 def test_message_accepts_mixed_text_and_images() -> None:
-    payload = MessageCreate(text_content="Hello", media_asset_ids=[uuid4(), uuid4()], client_message_id=uuid4())
+    payload = MessageCreate(
+        text_content="Hello", media_asset_ids=[uuid4(), uuid4()], client_message_id=uuid4()
+    )
     assert payload.text_content == "Hello" and len(payload.media_asset_ids) == 2
 
 
