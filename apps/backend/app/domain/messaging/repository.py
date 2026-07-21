@@ -71,7 +71,8 @@ class MessagingRepository:
                         MediaAsset.id.in_(asset_ids),
                         MediaAsset.owner_user_id == owner,
                         MediaAsset.upload_status == "UPLOADED",
-                        MediaAsset.media_type == "IMAGE",
+                        MediaAsset.processing_state == "READY",
+                        MediaAsset.media_type.in_(["IMAGE", "VIDEO"]),
                     )
                 )
             ).all()
@@ -81,7 +82,7 @@ class MessagingRepository:
     async def existing_message(self, sender_id: UUID, client_message_id: UUID):
         return await self.db.scalar(
             select(Message)
-            .options(selectinload(Message.media))
+            .options(selectinload(Message.media).selectinload(MessageMedia.media_asset))
             .where(
                 Message.sender_user_id == sender_id, Message.client_message_id == client_message_id
             )
@@ -99,7 +100,9 @@ class MessagingRepository:
 
     async def get_message(self, message_id: UUID):
         return await self.db.scalar(
-            select(Message).options(selectinload(Message.media)).where(Message.id == message_id)
+            select(Message)
+            .options(selectinload(Message.media).selectinload(MessageMedia.media_asset))
+            .where(Message.id == message_id)
         )
 
     async def messages(
@@ -107,7 +110,7 @@ class MessagingRepository:
     ):
         query = (
             select(Message)
-            .options(selectinload(Message.media))
+            .options(selectinload(Message.media).selectinload(MessageMedia.media_asset))
             .where(Message.conversation_id == conversation_id)
         )
         if cursor:

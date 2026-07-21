@@ -16,6 +16,7 @@ from app.domain.messaging.schemas import (
     MessageCreate,
     MessagePage,
     MessageResponse,
+    MessageAttachmentResponse,
 )
 
 
@@ -64,6 +65,23 @@ class MessagingService:
         )
 
     def message_response(self, value: Message):
+        attachments = []
+        for link in sorted(value.media, key=lambda x: x.ordering):
+            asset = link.media_asset
+            variants = {variant.kind: variant for variant in asset.variants}
+            base = f"/api/v1/messages/{value.id}/media/{asset.id}"
+            attachments.append(
+                MessageAttachmentResponse(
+                    media_id=asset.id,
+                    media_type=asset.media_type,
+                    width=asset.width,
+                    height=asset.height,
+                    duration_ms=asset.duration_ms,
+                    thumbnail_url=f"{base}?variant=THUMBNAIL" if "THUMBNAIL" in variants else None,
+                    display_url=f"{base}?variant=DISPLAY" if "DISPLAY" in variants else base,
+                    processing_state=asset.processing_state,
+                )
+            )
         return MessageResponse(
             id=value.id,
             sender_user_id=value.sender_user_id,
@@ -72,6 +90,7 @@ class MessagingService:
             media_asset_ids=[
                 link.media_asset_id for link in sorted(value.media, key=lambda x: x.ordering)
             ],
+            attachments=attachments,
             created_at=value.created_at,
             delivered_at=value.delivered_at,
             read_at=value.read_at,
@@ -140,7 +159,9 @@ class MessagingService:
             await self.repo.delete(value)
             await self.db.commit()
 
-    async def attachment(self, message_id: UUID, asset_id: UUID, user_id: UUID):
+    async def attachment(
+        self, message_id: UUID, asset_id: UUID, user_id: UUID, variant: str | None = None
+    ):
         value = await self.repo.get_message(message_id)
         if not value:
             raise MessagingError("Message not found", 404)
@@ -148,4 +169,9 @@ class MessagingService:
         asset = await self.repo.asset_for_message(message_id, asset_id)
         if not asset:
             raise MessagingError("Media asset not found", 404)
-        return asset
+        if not variant:
+            return asset.storage_key, asset.mime_type
+        value = next((item for item in asset.variants if item.kind == variant.upper()), None)
+        if not value:
+            raise MessagingError("Media variant not found", 404)
+        return value.storage_key, value.mime_type

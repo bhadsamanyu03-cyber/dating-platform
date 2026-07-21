@@ -89,14 +89,17 @@ async def delete_message(
 async def download_attachment(
     message_id: UUID,
     asset_id: UUID,
+    variant: str | None = Query(default=None, pattern="^(DISPLAY|THUMBNAIL)$"),
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_database_session),
 ) -> StreamingResponse:
     try:
-        asset = await MessagingService(db).attachment(message_id, asset_id, user.id)
+        storage_key, mime_type = await MessagingService(db).attachment(
+            message_id, asset_id, user.id, variant
+        )
         return StreamingResponse(
-            LocalStorageProvider(get_settings().media_storage_path).download(asset.storage_key),
-            media_type=asset.mime_type,
+            LocalStorageProvider(get_settings().media_storage_path).download(storage_key),
+            media_type=mime_type,
         )
     except MessagingError as exc:
         raise error(exc) from exc

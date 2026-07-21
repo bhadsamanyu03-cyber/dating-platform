@@ -1,9 +1,13 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.domain.identity.models import Base
+
+if TYPE_CHECKING:
+    from app.domain.messaging.models import MessageMedia
 
 
 class MediaAsset(Base):
@@ -33,13 +37,17 @@ class MediaAsset(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    variants: Mapped[list["MediaVariant"]] = relationship(
+        "MediaVariant", cascade="all, delete-orphan", lazy="selectin"
+    )
+    attached_messages: Mapped[list["MessageMedia"]] = relationship(
+        "MessageMedia", back_populates="media_asset", lazy="selectin"
+    )
 
 
 class MediaVariant(Base):
     __tablename__ = "media_variants"
-    __table_args__ = (
-        Index("uq_media_variants_asset_kind", "media_asset_id", "kind", unique=True),
-    )
+    __table_args__ = (Index("uq_media_variants_asset_kind", "media_asset_id", "kind", unique=True),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     media_asset_id: Mapped[uuid.UUID] = mapped_column(

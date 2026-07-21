@@ -30,11 +30,23 @@ class MessageResponse(BaseModel):
     message_type: str
     text_content: str | None
     media_asset_ids: list[UUID] = Field(default_factory=list)
+    attachments: list["MessageAttachmentResponse"] = Field(default_factory=list)
     created_at: datetime
     delivered_at: datetime | None = None
     read_at: datetime | None = None
     deleted_at: datetime | None = None
     client_message_id: UUID | None = None
+
+
+class MessageAttachmentResponse(BaseModel):
+    media_id: UUID
+    media_type: str
+    width: int | None
+    height: int | None
+    duration_ms: int | None
+    thumbnail_url: str | None
+    display_url: str
+    processing_state: str
 
 
 class MessagePage(BaseModel):

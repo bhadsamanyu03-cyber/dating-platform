@@ -1,11 +1,15 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.identity.models import Base
+
+if TYPE_CHECKING:
+    from app.domain.media.models import MediaAsset
 
 
 class Conversation(Base):
@@ -60,3 +64,7 @@ class MessageMedia(Base):
         UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="RESTRICT")
     )
     ordering: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    media_asset: Mapped["MediaAsset"] = relationship(
+        "MediaAsset", back_populates="attached_messages"
+    )
