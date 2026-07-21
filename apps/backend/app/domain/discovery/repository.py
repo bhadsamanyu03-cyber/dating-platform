@@ -1,6 +1,6 @@
 import base64
 from uuid import UUID
-from sqlalchemy import and_, exists, func, or_, select
+from sqlalchemy import and_, exists, func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.discovery.models import ProfileBlock, ProfileLike, ProfilePass
@@ -69,8 +69,14 @@ class DiscoveryRepository:
         )
         blocked = exists().where(
             or_(
-                and_(ProfileBlock.blocker_user_id == user_id, ProfileBlock.blocked_user_id == UserProfile.user_id),
-                and_(ProfileBlock.blocker_user_id == UserProfile.user_id, ProfileBlock.blocked_user_id == user_id),
+                and_(
+                    ProfileBlock.blocker_user_id == user_id,
+                    ProfileBlock.blocked_user_id == UserProfile.user_id,
+                ),
+                and_(
+                    ProfileBlock.blocker_user_id == UserProfile.user_id,
+                    ProfileBlock.blocked_user_id == user_id,
+                ),
             )
         )
         matched = exists().where(
@@ -112,6 +118,13 @@ class DiscoveryRepository:
         if filters.verified_only:
             query = query.where(
                 exists().where(User.id == UserProfile.user_id, User.is_email_verified.is_(True))
+            )
+        if filters.active_recently:
+            query = query.where(
+                exists().where(
+                    User.id == UserProfile.user_id,
+                    User.updated_at >= func.now() - text("interval '30 days'"),
+                )
             )
         if cursor:
             shared_count, completion, username = cursor

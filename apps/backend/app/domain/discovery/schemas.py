@@ -13,6 +13,7 @@ class DiscoveryFilters(BaseModel):
     gender: str | None = Field(default=None, min_length=1, max_length=100)
     minimum_profile_completion: int = Field(default=100, ge=0, le=100)
     verified_only: bool = False
+    active_recently: bool = False
 
     @model_validator(mode="after")
     def valid_age_range(self):
