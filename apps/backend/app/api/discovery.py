@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import current_user
 from app.api.dependencies import get_database_session
@@ -11,6 +11,7 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 
 @router.get("", response_model=DiscoveryPage)
 async def discover(
+    request: Request,
     cursor: str | None = None,
     limit: int = Query(20, ge=1, le=50),
     filters: DiscoveryFilters = Depends(),
@@ -18,7 +19,25 @@ async def discover(
     db: AsyncSession = Depends(get_database_session),
 ):
     try:
-        return await DiscoveryService(db).discover(user, cursor, limit, filters)
+        return await DiscoveryService(db).discover(
+            user,
+            cursor,
+            limit,
+            filters,
+            bool(
+                set(request.query_params).intersection(
+                    {
+                        "min_age",
+                        "max_age",
+                        "gender",
+                        "minimum_profile_completion",
+                        "verified_only",
+                        "active_recently",
+                        "show_only_with_photos",
+                    }
+                )
+            ),
+        )
     except (DiscoveryError, ValueError) as exc:
         raise HTTPException(
             exc.status_code if isinstance(exc, DiscoveryError) else 422,

@@ -119,6 +119,8 @@ class DiscoveryRepository:
             query = query.where(
                 exists().where(User.id == UserProfile.user_id, User.is_email_verified.is_(True))
             )
+        if filters.show_only_with_photos:
+            query = query.where(UserProfile.profile_photo_count > 0)
         if filters.active_recently:
             query = query.where(
                 exists().where(

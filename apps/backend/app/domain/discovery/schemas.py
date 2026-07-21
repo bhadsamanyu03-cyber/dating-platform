@@ -14,6 +14,7 @@ class DiscoveryFilters(BaseModel):
     minimum_profile_completion: int = Field(default=100, ge=0, le=100)
     verified_only: bool = False
     active_recently: bool = False
+    show_only_with_photos: bool = False
 
     @model_validator(mode="after")
     def valid_age_range(self):

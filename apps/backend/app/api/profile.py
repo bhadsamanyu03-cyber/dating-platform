@@ -17,6 +17,8 @@ from app.domain.profile.schemas import (
 from app.domain.profile.service import ProfileError, ProfileService
 from app.core.config import get_settings
 from app.domain.media.storage import LocalStorageProvider
+from app.domain.preferences.schemas import DiscoveryPreferenceResponse, DiscoveryPreferenceUpdate
+from app.domain.preferences.service import DiscoveryPreferenceService
 
 profile_router = APIRouter(prefix="/profile", tags=["profile"])
 interests_router = APIRouter(prefix="/interests", tags=["interests"])
@@ -69,6 +71,22 @@ async def update(
         raise HTTPException(exc.status_code, exc.message) from exc
 
 
+@profile_router.get("/preferences", response_model=DiscoveryPreferenceResponse)
+async def preferences(
+    user: User = Depends(current_user), db: AsyncSession = Depends(get_database_session)
+) -> DiscoveryPreferenceResponse:
+    return await DiscoveryPreferenceService(db).get(user.id)
+
+
+@profile_router.put("/preferences", response_model=DiscoveryPreferenceResponse)
+async def update_preferences(
+    payload: DiscoveryPreferenceUpdate,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+) -> DiscoveryPreferenceResponse:
+    return await DiscoveryPreferenceService(db).update(user.id, payload)
+
+
 @profile_router.post("/me/photos", response_model=ProfilePhotoResponse, status_code=201)
 async def add_photo(
     payload: ProfilePhotoCreate,
@@ -76,7 +94,9 @@ async def add_photo(
     db: AsyncSession = Depends(get_database_session),
 ) -> ProfilePhotoResponse:
     try:
-        return photo_output(await ProfileService(db).add_photo(user, payload.media_asset_id, payload.ordering))
+        return photo_output(
+            await ProfileService(db).add_photo(user, payload.media_asset_id, payload.ordering)
+        )
     except ProfileError as exc:
         raise HTTPException(exc.status_code, exc.message) from exc
 

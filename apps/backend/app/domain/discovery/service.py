@@ -9,6 +9,7 @@ from app.domain.identity.models import User
 from app.domain.matching.service import MatchService
 from app.domain.profile.schemas import InterestResponse
 from app.domain.notifications.service import NotificationService
+from app.domain.preferences.service import DiscoveryPreferenceService
 
 
 class DiscoveryError(Exception):
@@ -47,16 +48,25 @@ class DiscoveryService:
         self.db, self.repo, self.ranking = db, DiscoveryRepository(db), ranking or RankingStrategy()
         self.scorer = scorer or RecommendationScorer()
         self.matching = MatchService(db)
+        self.preferences = DiscoveryPreferenceService(db)
 
     async def discover(
-        self, user: User, cursor: str | None, limit: int, filters: DiscoveryFilters | None = None
+        self,
+        user: User,
+        cursor: str | None,
+        limit: int,
+        filters: DiscoveryFilters | None = None,
+        has_explicit_filters: bool = False,
     ) -> DiscoveryPage:
         own = await self.repo.profile_for_user(user.id)
         if not own or own.profile_completion_percentage < 100:
             raise DiscoveryError("Complete your profile before discovery", 403)
+        filters = filters or DiscoveryFilters()
+        if not has_explicit_filters:
+            filters = await self.preferences.filters(user.id)
         keyset = decode_cursor(cursor)
         rows = await self.repo.candidates(
-            user.id, [i.id for i in own.interests], keyset, limit, filters or DiscoveryFilters()
+            user.id, [i.id for i in own.interests], keyset, limit, filters
         )
         has_more = len(rows) > limit
         return DiscoveryPage(

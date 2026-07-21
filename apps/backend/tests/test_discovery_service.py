@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from app.domain.discovery.models import ProfileLike
 from app.domain.discovery.service import DiscoveryError, DiscoveryService, RankingStrategy
+from app.domain.discovery.schemas import DiscoveryFilters
 from app.domain.identity.models import User
 
 
@@ -49,10 +50,16 @@ class Matching:
         return None
 
 
+class Preferences:
+    async def filters(self, _):
+        return DiscoveryFilters()
+
+
 def service(own, rows=()):
     result = DiscoveryService(Database())
     result.repo = Repository(own, rows)
     result.matching = Matching()
+    result.preferences = Preferences()
     return result
 
 
