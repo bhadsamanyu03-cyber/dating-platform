@@ -140,6 +140,21 @@ async def set_primary_photo(
         raise HTTPException(exc.status_code, exc.message) from exc
 
 
+@profile_router.put("/me/photos/{photo_id}", response_model=ProfilePhotoResponse)
+async def replace_photo(
+    photo_id: UUID,
+    payload: ProfilePhotoCreate,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+) -> ProfilePhotoResponse:
+    try:
+        return photo_output(
+            await ProfileService(db).replace_photo(user, photo_id, payload.media_asset_id)
+        )
+    except ProfileError as exc:
+        raise HTTPException(exc.status_code, exc.message) from exc
+
+
 @profile_router.delete("/me/photos/{photo_id}", status_code=204)
 async def delete_photo(
     photo_id: UUID,

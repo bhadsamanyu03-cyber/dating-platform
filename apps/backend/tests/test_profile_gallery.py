@@ -94,3 +94,13 @@ async def test_delete_promotes_next_photo_and_enforces_photo_limit():
     subject.repo.photo_values = [photo(index) for index in range(12)]
     with pytest.raises(ProfileError, match="at most 12"):
         await subject.add_photo(user, uuid4(), 0)
+
+
+@pytest.mark.asyncio
+async def test_replace_photo_requires_an_owned_new_asset():
+    user = User(id=uuid4(), email="replace@example.com", password_hash="x")
+    current = photo(0, True)
+    subject = service(user.id, [current])
+    new_asset = uuid4()
+    replacement = await subject.replace_photo(user, current.id, new_asset)
+    assert replacement.media_asset_id == new_asset and replacement.is_primary

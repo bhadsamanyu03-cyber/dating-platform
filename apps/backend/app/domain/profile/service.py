@@ -126,3 +126,22 @@ class ProfileService:
         profile.profile_photo_count = len(photos)
         await self.db.commit()
         return await self.repo.photos(profile.id)
+
+    async def replace_photo(self, user: User, photo_id, media_asset_id) -> ProfilePhoto:
+        profile = await self.repo.by_user(user.id)
+        if not profile:
+            raise ProfileError("Profile not found", 404)
+        photo = await self.repo.photo(profile.id, photo_id)
+        if not photo:
+            raise ProfileError("Profile photo not found", 404)
+        if not await self.repo.owned_image_asset(media_asset_id, user.id):
+            raise ProfileError("Image media asset not found", 422)
+        if any(
+            value.media_asset_id == media_asset_id and value.id != photo.id
+            for value in await self.repo.photos(profile.id)
+        ):
+            raise ProfileError("Photo is already attached", 409)
+        photo.media_asset_id = media_asset_id
+        await self.db.commit()
+        await self.db.refresh(photo)
+        return photo

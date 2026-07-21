@@ -1,6 +1,17 @@
 import hashlib
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Protocol
+
+
+class StorageProvider(Protocol):
+    name: str
+
+    async def upload(self, key: str, chunks: AsyncIterator[bytes]) -> tuple[int, str]: ...
+
+    async def download(self, key: str) -> AsyncIterator[bytes]: ...
+
+    async def delete(self, key: str) -> None: ...
 
 
 class LocalStorageProvider:

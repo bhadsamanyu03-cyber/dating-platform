@@ -11,4 +11,11 @@ class MediaMetadata(BaseModel):
     file_size_bytes: int
     checksum_sha256: str
     upload_status: str
+    processing_state: str
+    width: int | None
+    height: int | None
+    duration_ms: int | None
+    aspect_ratio: str | None
+    orientation: int | None
+    codec: str | None
     created_at: datetime

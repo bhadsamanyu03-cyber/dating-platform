@@ -1,7 +1,7 @@
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domain.media.models import MediaAsset
+from app.domain.media.models import MediaAsset, MediaVariant
 
 
 class MediaRepository:
@@ -20,3 +20,16 @@ class MediaRepository:
     async def add(self, asset: MediaAsset):
         self.db.add(asset)
         await self.db.flush()
+
+    async def add_variant(self, variant: MediaVariant) -> None:
+        self.db.add(variant)
+        await self.db.flush()
+
+    async def variants(self, asset_id: UUID) -> list[MediaVariant]:
+        return list(
+            await self.db.scalars(
+                select(MediaVariant)
+                .where(MediaVariant.media_asset_id == asset_id)
+                .order_by(MediaVariant.kind)
+            )
+        )
