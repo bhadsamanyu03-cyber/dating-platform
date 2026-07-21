@@ -1,8 +1,10 @@
+from datetime import datetime
 from uuid import UUID
-from sqlalchemy import or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.feed.models import Post, PostMedia
 from app.domain.media.models import MediaAsset
+from app.domain.engagement.models import PostComment, PostLike
 
 
 class FeedRepository:
@@ -44,17 +46,42 @@ class FeedRepository:
             ).all()
         )
 
-    async def list(self, viewer: UUID | None, author: UUID | None, limit: int):
+    async def list(
+        self,
+        viewer: UUID,
+        author: UUID | None,
+        cursor: tuple[datetime, UUID] | None,
+        limit: int,
+    ):
         q = select(Post).where(
             Post.deleted_at.is_(None),
             or_(Post.visibility == "PUBLIC", Post.author_user_id == viewer),
         )
         if author:
             q = q.where(Post.author_user_id == author)
+        if cursor:
+            created_at, post_id = cursor
+            q = q.where(
+                or_(
+                    Post.created_at < created_at,
+                    and_(Post.created_at == created_at, Post.id < post_id),
+                )
+            )
         return list(
             (
                 await self.db.scalars(
-                    q.order_by(Post.created_at.desc(), Post.id.desc()).limit(limit)
+                    q.order_by(Post.created_at.desc(), Post.id.desc()).limit(limit + 1)
                 )
             ).all()
         )
+
+    async def counts(self, post_id: UUID) -> tuple[int, int]:
+        likes = await self.db.scalar(
+            select(func.count()).select_from(PostLike).where(PostLike.post_id == post_id)
+        )
+        comments = await self.db.scalar(
+            select(func.count())
+            .select_from(PostComment)
+            .where(PostComment.post_id == post_id, PostComment.deleted_at.is_(None))
+        )
+        return int(likes or 0), int(comments or 0)

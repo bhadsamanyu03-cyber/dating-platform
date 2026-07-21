@@ -3,6 +3,8 @@ from app.domain.engagement.models import PostComment
 from app.domain.engagement.repository import EngagementRepository
 from app.domain.engagement.schemas import CommentCreate, CommentPage, CommentResponse
 from app.domain.identity.security import utcnow
+from app.domain.notifications.repository import decode_cursor, encode_cursor
+from app.domain.notifications.service import NotificationService
 
 
 class EngagementError(Exception):
@@ -15,12 +17,19 @@ class EngagementService:
         self.db, self.repo = db, EngagementRepository(db)
 
     async def valid_post(self, id):
-        if not await self.repo.post(id):
+        post = await self.repo.post(id)
+        if not post:
             raise EngagementError("Post not found", 404)
+        return post
 
     async def like(self, post, user):
-        await self.valid_post(post)
-        await self.repo.like(post, user)
+        value = await self.valid_post(post)
+        if not await self.repo.like(post, user):
+            raise EngagementError("Post already liked", 409)
+        if value.author_user_id != user:
+            await NotificationService(self.db).create(
+                value.author_user_id, user, "POST_LIKE", {"post_id": str(post)}
+            )
         await self.db.commit()
 
     async def unlike(self, post, user):
@@ -29,11 +38,18 @@ class EngagementService:
         await self.db.commit()
 
     async def create_comment(self, post, user, payload: CommentCreate):
-        await self.valid_post(post)
+        target = await self.valid_post(post)
         if not payload.body.strip():
             raise EngagementError("Comment body is required", 422)
         value = PostComment(post_id=post, author_user_id=user, body=payload.body.strip())
         await self.repo.comment(value)
+        if target.author_user_id != user:
+            await NotificationService(self.db).create(
+                target.author_user_id,
+                user,
+                "POST_COMMENT",
+                {"post_id": str(post), "comment_id": str(value.id)},
+            )
         await self.db.commit()
         await self.db.refresh(value)
         return CommentResponse(
@@ -43,17 +59,23 @@ class EngagementService:
             created_at=value.created_at,
         )
 
-    async def comments(self, post):
+    async def comments(self, post, cursor: str | None, limit: int):
         await self.valid_post(post)
+        values = await self.repo.comments(post, decode_cursor(cursor), limit)
+        page = values[:limit]
         return CommentPage(
             comments=[
                 CommentResponse(
                     id=x.id, author_user_id=x.author_user_id, body=x.body, created_at=x.created_at
                 )
-                for x in await self.repo.comments(post)
+                for x in page
             ],
-            next_cursor=None,
+            next_cursor=encode_cursor(page[-1]) if len(values) > limit and page else None,
         )
+
+    async def counts(self, post):
+        await self.valid_post(post)
+        return await self.repo.counts(post)
 
     async def delete_comment(self, id, user):
         value = await self.repo.owned_comment(id, user)

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.feed.models import Post, PostMedia
 from app.domain.feed.repository import FeedRepository
 from app.domain.feed.schemas import PostCreate, PostPage, PostResponse
+from app.domain.notifications.repository import decode_cursor, encode_cursor
 
 
 class FeedError(Exception):
@@ -15,12 +16,15 @@ class FeedService:
         self.db, self.repo = db, FeedRepository(db)
 
     async def response(self, post):
+        like_count, comment_count = await self.repo.counts(post.id)
         return PostResponse(
             id=post.id,
             author_user_id=post.author_user_id,
             caption=post.caption,
             visibility=post.visibility,
             media_asset_ids=[x.media_asset_id for x in await self.repo.media(post.id)],
+            like_count=like_count,
+            comment_count=comment_count,
             created_at=post.created_at,
         )
 
@@ -43,10 +47,12 @@ class FeedService:
             raise FeedError("Post not found", 404)
         return await self.response(post)
 
-    async def list(self, user: UUID | None, author: UUID | None = None):
+    async def list(self, user: UUID, cursor: str | None, limit: int, author: UUID | None = None):
+        values = await self.repo.list(user, author, decode_cursor(cursor), limit)
+        page = values[:limit]
         return PostPage(
-            posts=[await self.response(x) for x in await self.repo.list(user, author, 50)],
-            next_cursor=None,
+            posts=[await self.response(x) for x in page],
+            next_cursor=encode_cursor(page[-1]) if len(values) > limit and page else None,
         )
 
     async def delete(self, id: UUID, user: UUID):

@@ -25,6 +25,8 @@ class PostResponse(BaseModel):
     caption: str | None
     visibility: str
     media_asset_ids: list[UUID]
+    like_count: int
+    comment_count: int
     created_at: datetime
 
 
