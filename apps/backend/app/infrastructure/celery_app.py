@@ -3,7 +3,10 @@ from app.core.config import get_settings
 
 settings = get_settings()
 celery_app = Celery(
-    "dating_platform", broker=str(settings.redis_url), backend=str(settings.redis_url)
+    "dating_platform",
+    broker=str(settings.redis_url),
+    backend=str(settings.redis_url),
+    include=["app.domain.media.tasks"],
 )
 celery_app.conf.update(
     task_serializer="json",

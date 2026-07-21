@@ -17,6 +17,9 @@ class MediaRepository:
             )
         )
 
+    async def by_id(self, asset_id: UUID) -> MediaAsset | None:
+        return await self.db.scalar(select(MediaAsset).where(MediaAsset.id == asset_id))
+
     async def add(self, asset: MediaAsset):
         self.db.add(asset)
         await self.db.flush()

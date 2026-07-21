@@ -3,8 +3,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domain.media.models import MediaAsset, MediaVariant
-from app.domain.media.processing import ImageProcessor
+from app.domain.media.models import MediaAsset
 from app.domain.media.repository import MediaRepository
 from app.domain.media.schemas import MediaMetadata
 from app.domain.media.storage import StorageProvider
@@ -41,9 +40,8 @@ class MediaError(Exception):
 
 
 class MediaService:
-    def __init__(self, db: AsyncSession, storage: StorageProvider, processor: ImageProcessor | None = None):
+    def __init__(self, db: AsyncSession, storage: StorageProvider):
         self.db, self.repo, self.storage = db, MediaRepository(db), storage
-        self.processor = processor or ImageProcessor()
 
     async def upload(self, owner: UUID, file: UploadFile) -> MediaAsset:
         first_chunk = await file.read(1024 * 1024)
@@ -85,24 +83,16 @@ class MediaService:
             size, checksum = await self.storage.upload(key, chunks())
             if not size:
                 raise MediaError("Empty uploads are not allowed", 422)
-            asset.file_size_bytes, asset.checksum_sha256, asset.upload_status = size, checksum, "UPLOADED"
-            asset.processing_state = "PROCESSING"
-            await self.repo.add_variant(
-                MediaVariant(
-                    media_asset_id=asset.id,
-                    kind="ORIGINAL",
-                    storage_key=asset.storage_key,
-                    mime_type=asset.mime_type,
-                    width=None,
-                    height=None,
-                    file_size_bytes=size,
-                )
+            asset.file_size_bytes, asset.checksum_sha256, asset.upload_status = (
+                size,
+                checksum,
+                "UPLOADED",
             )
-            if media_type == "IMAGE":
-                for variant in await self.processor.process(asset, self.storage):
-                    await self.repo.add_variant(variant)
-            asset.processing_state = "READY"
+            asset.processing_state = "QUEUED"
             await self.db.commit()
+            from app.domain.media.tasks import process_media
+
+            process_media.delay(str(asset.id))
             return asset
         except Exception:
             await self.storage.delete(key)

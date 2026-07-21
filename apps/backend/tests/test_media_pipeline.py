@@ -6,6 +6,7 @@ from PIL import Image
 
 from app.domain.media.models import MediaAsset
 from app.domain.media.processing import ImageProcessor
+from app.domain.media.tasks import process_media
 
 
 class Storage:
@@ -68,3 +69,7 @@ def test_media_metadata_states_and_video_support_are_explicit():
         codec="h264",
     )
     assert asset.processing_state == "READY" and asset.media_type == "VIDEO"
+
+
+def test_media_processing_is_registered_as_a_worker_task():
+    assert process_media.name == "media.process"
