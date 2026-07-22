@@ -15,14 +15,17 @@ class FeedService:
     def __init__(self, db: AsyncSession):
         self.db, self.repo = db, FeedRepository(db)
 
-    async def response(self, post):
-        like_count, comment_count = await self.repo.counts(post.id)
+    async def response(self, post, media=None, counts=None):
+        like_count, comment_count = counts or await self.repo.counts(post.id)
         return PostResponse(
             id=post.id,
             author_user_id=post.author_user_id,
             caption=post.caption,
             visibility=post.visibility,
-            media_asset_ids=[x.media_asset_id for x in await self.repo.media(post.id)],
+            media_asset_ids=[
+                x.media_asset_id
+                for x in (media if media is not None else await self.repo.media(post.id))
+            ],
             like_count=like_count,
             comment_count=comment_count,
             created_at=post.created_at,
@@ -50,8 +53,13 @@ class FeedService:
     async def list(self, user: UUID, cursor: str | None, limit: int, author: UUID | None = None):
         values = await self.repo.list(user, author, decode_cursor(cursor), limit)
         page = values[:limit]
+        ids = [post.id for post in page]
+        media = await self.repo.media_for_posts(ids)
+        counts = await self.repo.counts_for_posts(ids)
         return PostPage(
-            posts=[await self.response(x) for x in page],
+            posts=[
+                await self.response(post, media.get(post.id), counts.get(post.id)) for post in page
+            ],
             next_cursor=encode_cursor(page[-1]) if len(values) > limit and page else None,
         )
 

@@ -28,7 +28,7 @@ class Storage:
 
 
 @pytest.mark.asyncio
-async def test_image_processor_creates_original_display_and_thumbnail_metadata():
+async def test_image_processor_creates_configured_jpeg_and_webp_metadata():
     source = io.BytesIO()
     Image.new("RGB", (2000, 1000), "red").save(source, format="JPEG")
     asset = MediaAsset(
@@ -44,8 +44,19 @@ async def test_image_processor_creates_original_display_and_thumbnail_metadata()
         processing_state="PROCESSING",
     )
     storage = Storage({asset.storage_key: source.getvalue()})
-    variants = await ImageProcessor().process(asset, storage)
-    assert [variant.kind for variant in variants] == ["DISPLAY", "THUMBNAIL"]
+    variants = await ImageProcessor().process(
+        asset,
+        storage,
+        (("LARGE", 1600), ("THUMBNAIL", 400)),
+        jpeg_quality=85,
+        webp_quality=82,
+    )
+    assert [variant.kind for variant in variants] == [
+        "LARGE_JPG",
+        "LARGE_WEBP",
+        "THUMBNAIL_JPG",
+        "THUMBNAIL_WEBP",
+    ]
     assert asset.width == 2000 and asset.height == 1000 and asset.aspect_ratio == "2000:1000"
     assert all(variant.storage_key in storage.values for variant in variants)
 

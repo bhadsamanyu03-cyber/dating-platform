@@ -60,6 +60,12 @@ class FeedRepository:
     async def list(self, *_):
         return self.values
 
+    async def media_for_posts(self, ids):
+        return {post_id: [] for post_id in ids}
+
+    async def counts_for_posts(self, ids):
+        return {post_id: (0, 0) for post_id in ids}
+
 
 @pytest.mark.asyncio
 async def test_create_delete_and_paginate_feed_posts():

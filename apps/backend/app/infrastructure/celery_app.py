@@ -14,4 +14,9 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+    task_default_retry_delay=10,
+    task_annotations={"media.process": {"max_retries": 3}},
+    beat_schedule={"recover-stale-media": {"task": "media.recover_stale", "schedule": 300.0}},
 )

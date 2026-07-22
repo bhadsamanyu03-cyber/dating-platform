@@ -1,7 +1,14 @@
+import asyncio
 import hashlib
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Protocol
+
+from app.core.config import Settings
+
+
+class StorageError(RuntimeError):
+    """A provider failure that can be handled without leaking provider details."""
 
 
 class StorageProvider(Protocol):
@@ -12,6 +19,16 @@ class StorageProvider(Protocol):
     async def download(self, key: str) -> AsyncIterator[bytes]: ...
 
     async def delete(self, key: str) -> None: ...
+
+    async def exists(self, key: str) -> bool: ...
+
+    async def metadata(self, key: str) -> dict[str, int]: ...
+
+    async def healthcheck(self) -> bool: ...
+
+    def supports_signed_urls(self) -> bool: ...
+
+    async def signed_download_url(self, key: str, expires_in: int) -> str | None: ...
 
 
 class LocalStorageProvider:
@@ -51,5 +68,116 @@ class LocalStorageProvider:
     async def exists(self, key: str) -> bool:
         return self.path(key).is_file()
 
-    async def metadata(self, key: str) -> dict:
+    async def metadata(self, key: str) -> dict[str, int]:
         return {"size": self.path(key).stat().st_size}
+
+    async def healthcheck(self) -> bool:
+        try:
+            self.root.mkdir(parents=True, exist_ok=True)
+            return self.root.is_dir()
+        except OSError:
+            return False
+
+    def supports_signed_urls(self) -> bool:
+        return False
+
+    async def signed_download_url(self, key: str, expires_in: int) -> str | None:
+        return None
+
+
+class S3StorageProvider:
+    """S3-compatible provider used by both AWS S3 and MinIO.
+
+    boto3 is deliberately isolated here so domain services stay provider-agnostic.
+    """
+
+    name = "s3"
+
+    def __init__(
+        self,
+        *,
+        bucket: str,
+        access_key_id: str,
+        secret_access_key: str,
+        endpoint_url: str | None = None,
+        timeout_seconds: int = 30,
+        name: str = "s3",
+    ):
+        import boto3
+        from botocore.config import Config
+
+        self.name = name
+        self.bucket = bucket
+        self.client = boto3.client(
+            "s3",
+            endpoint_url=endpoint_url or None,
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            config=Config(connect_timeout=timeout_seconds, read_timeout=timeout_seconds),
+        )
+
+    async def upload(self, key: str, chunks: AsyncIterator[bytes]) -> tuple[int, str]:
+        value = b"".join([chunk async for chunk in chunks])
+        checksum = hashlib.sha256(value).hexdigest()
+        await asyncio.to_thread(self.client.put_object, Bucket=self.bucket, Key=key, Body=value)
+        return len(value), checksum
+
+    async def download(self, key: str) -> AsyncIterator[bytes]:
+        response = await asyncio.to_thread(self.client.get_object, Bucket=self.bucket, Key=key)
+        body = response["Body"]
+        try:
+            while chunk := await asyncio.to_thread(body.read, 1024 * 1024):
+                yield chunk
+        finally:
+            await asyncio.to_thread(body.close)
+
+    async def delete(self, key: str) -> None:
+        await asyncio.to_thread(self.client.delete_object, Bucket=self.bucket, Key=key)
+
+    async def exists(self, key: str) -> bool:
+        from botocore.exceptions import ClientError
+
+        try:
+            await asyncio.to_thread(self.client.head_object, Bucket=self.bucket, Key=key)
+            return True
+        except ClientError as error:
+            if error.response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 404:
+                return False
+            raise StorageError("Unable to inspect storage object") from error
+
+    async def metadata(self, key: str) -> dict[str, int]:
+        result = await asyncio.to_thread(self.client.head_object, Bucket=self.bucket, Key=key)
+        return {"size": int(result["ContentLength"])}
+
+    async def healthcheck(self) -> bool:
+        try:
+            await asyncio.to_thread(self.client.head_bucket, Bucket=self.bucket)
+            return True
+        except Exception:
+            return False
+
+    def supports_signed_urls(self) -> bool:
+        return True
+
+    async def signed_download_url(self, key: str, expires_in: int) -> str | None:
+        return await asyncio.to_thread(
+            self.client.generate_presigned_url,
+            "get_object",
+            Params={"Bucket": self.bucket, "Key": key},
+            ExpiresIn=expires_in,
+        )
+
+
+def storage_provider(settings: Settings) -> StorageProvider:
+    if settings.media_storage_provider == "local":
+        return LocalStorageProvider(settings.media_storage_path)
+    return S3StorageProvider(
+        bucket=settings.s3_bucket,
+        access_key_id=settings.s3_access_key_id,
+        secret_access_key=settings.s3_secret_access_key.get_secret_value(),
+        endpoint_url=(
+            settings.s3_endpoint_url if settings.media_storage_provider == "minio" else None
+        ),
+        timeout_seconds=settings.media_storage_timeout_seconds,
+        name=settings.media_storage_provider,
+    )

@@ -14,6 +14,8 @@ async def readiness(request: Request) -> dict[str, str]:
     await request.app.state.redis.ping()
     async with request.app.state.db_engine.connect() as connection:
         await connection.exec_driver_sql("SELECT 1")
+    if not await request.app.state.storage.healthcheck():
+        raise RuntimeError("Media storage is unavailable")
     return {"status": "ok"}
 
 

@@ -1,4 +1,6 @@
 from uuid import UUID
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.media.models import MediaAsset, MediaVariant
@@ -27,6 +29,23 @@ class MediaRepository:
     async def add_variant(self, variant: MediaVariant) -> None:
         self.db.add(variant)
         await self.db.flush()
+
+    async def has_variants(self, asset_id: UUID) -> bool:
+        return bool(
+            await self.db.scalar(
+                select(MediaVariant.id).where(MediaVariant.media_asset_id == asset_id).limit(1)
+            )
+        )
+
+    async def stale_processing(self, before: datetime) -> list[MediaAsset]:
+        return list(
+            await self.db.scalars(
+                select(MediaAsset).where(
+                    MediaAsset.processing_state.in_(["QUEUED", "PROCESSING"]),
+                    MediaAsset.updated_at < before,
+                )
+            )
+        )
 
     async def variants(self, asset_id: UUID) -> list[MediaVariant]:
         return list(

@@ -1,4 +1,5 @@
 from datetime import datetime
+from collections.abc import Sequence
 from uuid import UUID
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,6 +47,21 @@ class FeedRepository:
             ).all()
         )
 
+    async def media_for_posts(self, ids: Sequence[UUID]) -> dict[UUID, list[PostMedia]]:
+        if not ids:
+            return {}
+        rows = list(
+            await self.db.scalars(
+                select(PostMedia)
+                .where(PostMedia.post_id.in_(ids))
+                .order_by(PostMedia.post_id, PostMedia.position)
+            )
+        )
+        result: dict[UUID, list[PostMedia]] = {post_id: [] for post_id in ids}
+        for row in rows:
+            result.setdefault(row.post_id, []).append(row)
+        return result
+
     async def list(
         self,
         viewer: UUID,
@@ -85,3 +101,23 @@ class FeedRepository:
             .where(PostComment.post_id == post_id, PostComment.deleted_at.is_(None))
         )
         return int(likes or 0), int(comments or 0)
+
+    async def counts_for_posts(self, ids: Sequence[UUID]) -> dict[UUID, tuple[int, int]]:
+        if not ids:
+            return {}
+        like_rows = await self.db.execute(
+            select(PostLike.post_id, func.count(PostLike.id))
+            .where(PostLike.post_id.in_(ids))
+            .group_by(PostLike.post_id)
+        )
+        comment_rows = await self.db.execute(
+            select(PostComment.post_id, func.count(PostComment.id))
+            .where(PostComment.post_id.in_(ids), PostComment.deleted_at.is_(None))
+            .group_by(PostComment.post_id)
+        )
+        result = {post_id: [0, 0] for post_id in ids}
+        for post_id, count in like_rows:
+            result[post_id][0] = int(count)
+        for post_id, count in comment_rows:
+            result[post_id][1] = int(count)
+        return {post_id: (values[0], values[1]) for post_id, values in result.items()}

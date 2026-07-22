@@ -10,13 +10,20 @@ from app.core.config import get_settings
 from app.domain.identity.models import User
 from app.domain.media.schemas import MediaMetadata
 from app.domain.media.service import MediaError, MediaService
-from app.domain.media.storage import LocalStorageProvider
+from app.domain.media.storage import storage_provider
 
 router = APIRouter(prefix="/media", tags=["media"])
 
 
 def service(db: AsyncSession) -> MediaService:
-    return MediaService(db, LocalStorageProvider(get_settings().media_storage_path))
+    settings = get_settings()
+    return MediaService(
+        db,
+        storage_provider(settings),
+        image_upload_limit=settings.media_image_max_upload_bytes,
+        video_upload_limit=settings.media_video_max_upload_bytes,
+        upload_chunk_bytes=settings.media_upload_chunk_bytes,
+    )
 
 
 @router.post("/upload", response_model=MediaMetadata, status_code=201)

@@ -40,8 +40,18 @@ class MediaError(Exception):
 
 
 class MediaService:
-    def __init__(self, db: AsyncSession, storage: StorageProvider):
+    def __init__(
+        self,
+        db: AsyncSession,
+        storage: StorageProvider,
+        *,
+        image_upload_limit: int = LIMITS["IMAGE"],
+        video_upload_limit: int = LIMITS["VIDEO"],
+        upload_chunk_bytes: int = 1024 * 1024,
+    ):
         self.db, self.repo, self.storage = db, MediaRepository(db), storage
+        self.limits = {"IMAGE": image_upload_limit, "VIDEO": video_upload_limit}
+        self.upload_chunk_bytes = upload_chunk_bytes
 
     async def upload(self, owner: UUID, file: UploadFile) -> MediaAsset:
         first_chunk = await file.read(1024 * 1024)
@@ -58,12 +68,12 @@ class MediaService:
             total = 0
             if first_chunk:
                 total = len(first_chunk)
-                if total > LIMITS[media_type]:
+                if total > self.limits[media_type]:
                     raise MediaError("File exceeds size limit", 422)
                 yield first_chunk
-            while chunk := await file.read(1024 * 1024):
+            while chunk := await file.read(self.upload_chunk_bytes):
                 total += len(chunk)
-                if total > LIMITS[media_type]:
+                if total > self.limits[media_type]:
                     raise MediaError("File exceeds size limit", 422)
                 yield chunk
 
@@ -75,6 +85,7 @@ class MediaService:
             media_type=media_type,
             file_size_bytes=0,
             checksum_sha256="",
+            storage_provider=self.storage.name,
             upload_status="UPLOADING",
             processing_state="UPLOADING",
         )

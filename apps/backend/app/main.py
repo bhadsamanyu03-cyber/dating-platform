@@ -20,6 +20,7 @@ from app.core.logging import configure_logging
 from app.infrastructure.database import create_database_engine
 from app.infrastructure.redis import create_redis_client
 from app.infrastructure.email import DevelopmentEmailProvider
+from app.domain.media.storage import storage_provider
 
 
 @asynccontextmanager
@@ -29,6 +30,7 @@ async def lifespan(app: FastAPI):
     app.state.db_engine = create_database_engine(str(settings.database_url))
     app.state.redis = create_redis_client(str(settings.redis_url))
     app.state.email_provider = DevelopmentEmailProvider()
+    app.state.storage = storage_provider(settings)
     yield
     await app.state.redis.aclose()
     await app.state.db_engine.dispose()
