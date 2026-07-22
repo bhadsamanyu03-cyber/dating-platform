@@ -1,11 +1,12 @@
 import io
+import subprocess
 from uuid import uuid4
 
 import pytest
 from PIL import Image
 
 from app.domain.media.models import MediaAsset
-from app.domain.media.processing import ImageProcessor
+from app.domain.media.processing import ImageProcessor, VideoProcessor
 from app.domain.media.tasks import process_media
 
 
@@ -82,5 +83,66 @@ def test_media_metadata_states_and_video_support_are_explicit():
     assert asset.processing_state == "READY" and asset.media_type == "VIDEO"
 
 
+@pytest.mark.asyncio
+async def test_video_processor_extracts_metadata_and_generates_variants(tmp_path):
+    asset = MediaAsset(
+        id=uuid4(),
+        owner_user_id=uuid4(),
+        storage_key="owner/video",
+        original_filename="clip.mp4",
+        mime_type="video/mp4",
+        media_type="VIDEO",
+        file_size_bytes=5,
+        checksum_sha256="checksum",
+        upload_status="UPLOADED",
+        processing_state="PROCESSING",
+    )
+    storage = Storage({asset.storage_key: b"video"})
+    processor = FakeVideoProcessor()
+
+    variants = await processor.process(
+        asset,
+        storage,
+        display_max_px=1280,
+        thumbnail_max_px=640,
+        thumbnail_second=1,
+    )
+
+    assert asset.width == 1920
+    assert asset.height == 1080
+    assert asset.duration_ms == 2500
+    assert asset.codec == "h264"
+    assert asset.aspect_ratio == "1920:1080"
+    assert [variant.kind for variant in variants] == ["DISPLAY", "THUMBNAIL"]
+    assert variants[0].mime_type == "video/mp4"
+    assert variants[1].mime_type == "image/jpeg"
+    assert storage.values["owner/video.display.mp4"] == b"display"
+    assert storage.values["owner/video.thumbnail.jpg"].startswith(b"\xff\xd8")
+    assert [command[0] for command in processor.commands] == ["ffprobe", "ffmpeg", "ffmpeg"]
+
+
 def test_media_processing_is_registered_as_a_worker_task():
     assert process_media.name == "media.process"
+
+
+class FakeVideoProcessor(VideoProcessor):
+    def __init__(self):
+        self.commands = []
+
+    async def _run(self, *command: str, capture_output: bool = False):
+        self.commands.append(command)
+        if command[0] == "ffprobe":
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                b'{"streams":[{"width":1920,"height":1080,"codec_name":"h264"}],'
+                b'"format":{"duration":"2.5"}}',
+                b"",
+            )
+        output = command[-1]
+        if output.endswith(".mp4"):
+            with open(output, "wb") as file:
+                file.write(b"display")
+        if output.endswith(".jpg"):
+            Image.new("RGB", (640, 360), "blue").save(output, format="JPEG")
+        return subprocess.CompletedProcess(command, 0, b"", b"")

@@ -20,6 +20,7 @@ class FeedRepository:
                         MediaAsset.id.in_(ids),
                         MediaAsset.owner_user_id == owner,
                         MediaAsset.upload_status == "UPLOADED",
+                        MediaAsset.processing_state == "READY",
                     )
                 )
             ).all()

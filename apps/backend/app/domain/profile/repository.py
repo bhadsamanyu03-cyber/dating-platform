@@ -28,6 +28,7 @@ class ProfileRepository:
                 MediaAsset.owner_user_id == user_id,
                 MediaAsset.media_type == "IMAGE",
                 MediaAsset.upload_status == "UPLOADED",
+                MediaAsset.processing_state == "READY",
             )
         )
 

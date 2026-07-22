@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.config import get_settings
 from app.domain.media.models import MediaVariant
-from app.domain.media.processing import ImageProcessor
+from app.domain.media.processing import ImageProcessor, VideoProcessor
 from app.domain.media.repository import MediaRepository
 from app.domain.media.storage import storage_provider
 from app.domain.identity.security import utcnow
@@ -55,6 +55,15 @@ async def process_media_asset(asset_id: UUID) -> None:
                         ),
                         settings.media_image_jpeg_quality,
                         settings.media_image_webp_quality,
+                    ):
+                        await repo.add_variant(variant)
+                if asset.media_type == "VIDEO":
+                    for variant in await VideoProcessor().process(
+                        asset,
+                        storage_provider(settings),
+                        display_max_px=settings.media_video_display_px,
+                        thumbnail_max_px=settings.media_video_thumbnail_px,
+                        thumbnail_second=settings.media_video_thumbnail_second,
                     ):
                         await repo.add_variant(variant)
                 asset.processing_state = "READY"
