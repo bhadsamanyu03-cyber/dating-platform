@@ -31,6 +31,8 @@ async def lifespan(app: FastAPI):
     app.state.redis = create_redis_client(str(settings.redis_url))
     app.state.email_provider = DevelopmentEmailProvider()
     app.state.storage = storage_provider(settings)
+    if not await app.state.storage.healthcheck():
+        raise RuntimeError("Media storage is unavailable")
     yield
     await app.state.redis.aclose()
     await app.state.db_engine.dispose()

@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MediaMetadata(BaseModel):
@@ -19,3 +19,15 @@ class MediaMetadata(BaseModel):
     orientation: int | None
     codec: str | None
     created_at: datetime
+
+
+class PresignedUploadRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    mime_type: str
+
+
+class PresignedUrlResponse(BaseModel):
+    url: str
+    method: str
+    storage_key: str
+    expires_in: int

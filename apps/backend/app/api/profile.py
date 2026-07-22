@@ -17,7 +17,7 @@ from app.domain.profile.schemas import (
 )
 from app.domain.profile.service import ProfileError, ProfileService
 from app.core.config import get_settings
-from app.domain.media.storage import LocalStorageProvider
+from app.domain.media.storage import storage_provider
 from app.domain.preferences.schemas import DiscoveryPreferenceResponse, DiscoveryPreferenceUpdate
 from app.domain.preferences.service import DiscoveryPreferenceService
 
@@ -197,8 +197,9 @@ async def download_photo(
     asset = await repository.owned_image_asset(photo.media_asset_id, profile.user_id)
     if not asset:
         raise HTTPException(404, "Profile photo not found")
+    settings = get_settings()
     return StreamingResponse(
-        LocalStorageProvider(get_settings().media_storage_path).download(asset.storage_key),
+        storage_provider(settings).download(asset.storage_key),
         media_type=asset.mime_type,
     )
 

@@ -13,7 +13,7 @@ from app.domain.messaging.schemas import (
     MessageResponse,
 )
 from app.domain.messaging.service import MessagingError, MessagingService
-from app.domain.media.storage import LocalStorageProvider
+from app.domain.media.storage import storage_provider
 from app.core.config import get_settings
 from app.api.dependencies import get_redis
 from app.domain.presence.service import TypingService
@@ -97,8 +97,9 @@ async def download_attachment(
         storage_key, mime_type = await MessagingService(db).attachment(
             message_id, asset_id, user.id, variant
         )
+        settings = get_settings()
         return StreamingResponse(
-            LocalStorageProvider(get_settings().media_storage_path).download(storage_key),
+            storage_provider(settings).download(storage_key),
             media_type=mime_type,
         )
     except MessagingError as exc:
