@@ -9,7 +9,12 @@ from app.api.auth import current_user
 from app.api.dependencies import get_database_session
 from app.core.config import get_settings
 from app.domain.identity.models import User
-from app.domain.media.schemas import MediaMetadata, PresignedUploadRequest, PresignedUrlResponse
+from app.domain.media.schemas import (
+    MediaMetadata,
+    PresignedFinalizeRequest,
+    PresignedUploadRequest,
+    PresignedUrlResponse,
+)
 from app.domain.media.service import SUPPORTED, MediaError, MediaService
 from app.domain.media.storage import storage_provider
 
@@ -62,6 +67,22 @@ async def presigned_upload(
         storage_key=storage_key,
         expires_in=settings.media_signed_url_expiry_seconds,
     )
+
+
+@router.post("/finalize-upload", response_model=MediaMetadata, status_code=201)
+async def finalize_upload(
+    payload: PresignedFinalizeRequest,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_database_session),
+) -> MediaMetadata:
+    try:
+        return service(db).metadata(
+            await service(db).finalize_upload(
+                user.id, payload.storage_key, payload.filename, payload.mime_type
+            )
+        )
+    except MediaError as error:
+        raise HTTPException(error.status_code, error.message) from error
 
 
 @router.get("/{asset_id}/metadata", response_model=MediaMetadata)

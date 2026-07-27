@@ -1,10 +1,11 @@
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import SecretStr
 
-from app.domain.media.service import SUPPORTED, detected_mime
+from app.domain.media.service import MediaError, MediaService, SUPPORTED, detected_mime
 from app.domain.media.storage import LocalStorageProvider, S3StorageProvider, storage_provider
 
 
@@ -143,3 +144,90 @@ def settings(provider: str, tmp_path: Path):
         media_storage_timeout_seconds=30,
         media_storage_retry_attempts=3,
     )
+
+
+class FinalizeDB:
+    def __init__(self):
+        self.added = []
+        self.commits = 0
+
+    def add(self, value):
+        self.added.append(value)
+
+    async def flush(self):
+        return None
+
+    async def commit(self):
+        self.commits += 1
+
+
+class FinalizeRepo:
+    def __init__(self, existing=None):
+        self.existing = existing
+
+    async def by_storage_key(self, storage_key):
+        return self.existing
+
+    async def add(self, asset):
+        self.existing = asset
+
+
+class FinalizeStorage:
+    name = "minio"
+
+    def __init__(self, data: bytes):
+        self.data = data
+        self.deleted = []
+
+    async def download(self, key):
+        yield self.data
+
+    async def delete(self, key):
+        self.deleted.append(key)
+
+
+@pytest.mark.asyncio
+async def test_presigned_finalize_creates_asset_and_enqueues_processing(monkeypatch):
+    import app.domain.media.tasks as tasks_module
+
+    owner = uuid4()
+    db = FinalizeDB()
+    service = MediaService(db, FinalizeStorage(b"\xff\xd8\xffdata"))
+    service.repo = FinalizeRepo()
+    calls = []
+
+    monkeypatch.setattr(
+        tasks_module.process_media, "delay", lambda asset_id: calls.append(asset_id)
+    )
+
+    asset = await service.finalize_upload(
+        owner,
+        f"{owner}/upload",
+        "My Photo.jpg",
+        "image/jpeg",
+    )
+
+    assert asset.original_filename == "My_Photo.jpg"
+    assert asset.upload_status == "UPLOADED"
+    assert asset.processing_state == "QUEUED"
+    assert db.commits == 1
+    assert service.repo.existing is asset
+    assert calls == [str(asset.id)]
+
+
+@pytest.mark.asyncio
+async def test_presigned_finalize_rejects_wrong_owner_and_mime():
+    db = FinalizeDB()
+    service = MediaService(db, FinalizeStorage(b"\x89PNG\r\n\x1a\npayload"))
+    service.repo = FinalizeRepo()
+
+    with pytest.raises(MediaError, match="Invalid storage key"):
+        await service.finalize_upload(uuid4(), "someone-else/upload", "x.png", "image/png")
+
+    with pytest.raises(MediaError, match="Uploaded media type does not match request"):
+        await service.finalize_upload(
+            UUID("123e4567-e89b-12d3-a456-426614174000"),
+            "123e4567-e89b-12d3-a456-426614174000/upload",
+            "x.jpg",
+            "image/jpeg",
+        )

@@ -1,4 +1,5 @@
 import re
+import hashlib
 from pathlib import Path
 from uuid import UUID, uuid4
 from fastapi import UploadFile
@@ -123,6 +124,61 @@ class MediaService:
         await self.storage.delete(asset.storage_key)
         asset.upload_status = "DELETED"
         await self.db.commit()
+
+    async def finalize_upload(
+        self, owner: UUID, storage_key: str, filename: str, expected_mime_type: str
+    ) -> MediaAsset:
+        if not storage_key or not storage_key.startswith(f"{owner}/"):
+            raise MediaError("Invalid storage key", 422)
+        if expected_mime_type not in SUPPORTED:
+            raise MediaError("Unsupported media type", 422)
+        name = Path(filename).name
+        if not name or name in {".", ".."}:
+            raise MediaError("Invalid filename", 422)
+        existing = await self.repo.by_storage_key(storage_key)
+        if existing:
+            if existing.owner_user_id != owner:
+                raise MediaError("Media asset not found", 404)
+            return existing
+        digest = hashlib.sha256()
+        size = 0
+        first_chunk = b""
+        try:
+            async for chunk in self.storage.download(storage_key):
+                if not first_chunk:
+                    first_chunk = chunk
+                digest.update(chunk)
+                size += len(chunk)
+                if size > self.limits[SUPPORTED[expected_mime_type]]:
+                    raise MediaError("File exceeds size limit", 422)
+        except FileNotFoundError as error:
+            raise MediaError("Media asset not found", 404) from error
+        except Exception as error:
+            raise MediaError("Media asset not found", 404) from error
+        if not size:
+            raise MediaError("Empty uploads are not allowed", 422)
+        detected = detected_mime(first_chunk)
+        if detected != expected_mime_type:
+            raise MediaError("Uploaded media type does not match request", 422)
+        media_type = SUPPORTED.get(detected or "")
+        asset = MediaAsset(
+            owner_user_id=owner,
+            storage_key=storage_key,
+            original_filename=re.sub(r"[^A-Za-z0-9._-]", "_", name),
+            mime_type=detected,
+            media_type=media_type,
+            file_size_bytes=size,
+            checksum_sha256=digest.hexdigest(),
+            storage_provider=self.storage.name,
+            upload_status="UPLOADED",
+            processing_state="QUEUED",
+        )
+        await self.repo.add(asset)
+        await self.db.commit()
+        from app.domain.media.tasks import process_media
+
+        process_media.delay(str(asset.id))
+        return asset
 
     def metadata(self, asset):
         return MediaMetadata.model_validate(asset, from_attributes=True)

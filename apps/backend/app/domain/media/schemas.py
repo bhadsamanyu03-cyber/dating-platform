@@ -26,6 +26,12 @@ class PresignedUploadRequest(BaseModel):
     mime_type: str
 
 
+class PresignedFinalizeRequest(BaseModel):
+    storage_key: str = Field(min_length=1, max_length=255)
+    filename: str = Field(min_length=1, max_length=255)
+    mime_type: str
+
+
 class PresignedUrlResponse(BaseModel):
     url: str
     method: str
