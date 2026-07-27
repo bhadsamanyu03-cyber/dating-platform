@@ -16,7 +16,7 @@ import {
   Message,
   messages,
   sendMessage,
-  uploadImage,
+  uploadMedia,
 } from "./conversationsApi";
 
 const temporaryId = () => `local-${Date.now()}-${Math.random()}`;
@@ -82,7 +82,7 @@ export function ConversationsScreen({ accessToken }: { accessToken: string }) {
     if (!permission.granted)
       return setError("Photo library permission is required.");
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
+      mediaTypes: ["images", "videos"],
       allowsMultipleSelection: true,
       selectionLimit: 10,
       quality: 0.9,
@@ -99,7 +99,7 @@ export function ConversationsScreen({ accessToken }: { accessToken: string }) {
     try {
       assets = await Promise.all(
         attachmentUris.map(
-          async (uri) => (await uploadImage(accessToken, uri)).id,
+          async (uri) => (await uploadMedia(accessToken, uri)).id,
         ),
       );
     } catch (cause) {

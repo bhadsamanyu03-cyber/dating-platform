@@ -14,6 +14,13 @@ export type Profile = {
   created_at: string;
   updated_at: string;
 };
+export type ProfilePhoto = {
+  id: string;
+  media_asset_id: string;
+  ordering: number;
+  is_primary: boolean;
+  created_at: string;
+};
 const baseUrl =
   process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 async function request<T>(
@@ -61,4 +68,21 @@ export const saveProfile = (
   request<Profile>("/profile/me", token, {
     method: "PUT",
     body: JSON.stringify(profile),
+  });
+
+export const getMyPhotos = (token: string) =>
+  request<ProfilePhoto[]>("/profile/me/photos", token);
+
+export const addPhoto = (
+  token: string,
+  payload: { media_asset_id: string; ordering: number },
+) =>
+  request<ProfilePhoto>("/profile/me/photos", token, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const deletePhoto = (token: string, photoId: string) =>
+  request<void>(`/profile/me/photos/${photoId}`, token, {
+    method: "DELETE",
   });

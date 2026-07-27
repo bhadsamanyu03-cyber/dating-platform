@@ -1,94 +1,184 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Button,
+  FlatList,
+  Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import {
+  addPhoto,
+  deletePhoto,
+  getMyPhotos,
+  ProfilePhoto,
+} from "../../profileApi";
+import { mediaDownloadUrl, uploadMediaAsset } from "../../mediaApi";
 
 type Props = {
   accessToken: string;
 };
 
 export function ProfilePhotosScreen({ accessToken }: Props) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string>();
-  const [photos, setPhotos] = useState<{ id: string; name: string }[]>([]);
+  const [photos, setPhotos] = useState<ProfilePhoto[]>([]);
 
-  // Placeholder for M2 media implementation
-  const handleAddPhoto = () => {
-    setError(
-      "Photo uploads will be available in the next update (Milestone 2: Profile & Media Foundation)",
-    );
+  const orderedPhotos = useMemo(
+    () => [...photos].sort((left, right) => left.ordering - right.ordering),
+    [photos],
+  );
+
+  const load = async () => {
+    try {
+      setPhotos(await getMyPhotos(accessToken));
+      setError(undefined);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to load photos",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
+  useEffect(() => {
+    void load();
+  }, [accessToken]);
+
+  const pickPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError("Photo library permission is required.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsMultipleSelection: false,
+      selectionLimit: 1,
+      quality: 0.9,
+    });
+    if (result.canceled || !result.assets.length) return;
+
+    const [asset] = result.assets;
+    setUploading(true);
+    setError(undefined);
+    try {
+      const uploaded = await uploadMediaAsset(accessToken, asset.uri);
+      await addPhoto(accessToken, {
+        media_asset_id: uploaded.id,
+        ordering: photos.length,
+      });
+      await load();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to upload photo",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = async (photoId: string) => {
+    try {
+      await deletePhoto(accessToken, photoId);
+      await load();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to delete photo",
+      );
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator />
+        <Text>Loading photos…</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => setRefreshing(true)}
+        />
+      }
+    >
       <Text style={styles.title}>Your Photos</Text>
       <Text style={styles.description}>
-        Add up to 12 photos to your profile. Your first photo will be your
-        primary profile picture.
+        Add up to 12 photos to your profile. The first photo is treated as your
+        primary photo.
       </Text>
 
-      <View style={styles.featureBox}>
-        <Text style={styles.featureTitle}>✨ Coming Soon</Text>
-        <Text style={styles.featureText}>
-          Photo uploads and gallery management will be available soon. You'll be
-          able to:
-        </Text>
-        <View style={styles.featureList}>
-          <Text style={styles.featureBullet}>
-            • Upload JPEG, PNG, WebP, and HEIC photos
-          </Text>
-          <Text style={styles.featureBullet}>• Up to 25 MB per photo</Text>
-          <Text style={styles.featureBullet}>
-            • Automatic image optimization
-          </Text>
-          <Text style={styles.featureBullet}>
-            • Reorder your photos by dragging
-          </Text>
-          <Text style={styles.featureBullet}>• Delete unwanted photos</Text>
-        </View>
-      </View>
+      {error && <Text style={styles.error}>{error}</Text>}
 
-      <View style={styles.placeholderGrid}>
-        {[...Array(3)].map((_, i) => (
-          <View key={i} style={styles.photoPlaceholder}>
-            <Text style={styles.placeholderText}>Photo {i + 1}</Text>
-            <Text style={styles.placeholderSubtext}>Tap to add</Text>
+      <FlatList
+        horizontal
+        scrollEnabled={false}
+        data={orderedPhotos}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.gallery}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          void load();
+        }}
+        renderItem={({ item, index }) => (
+          <View style={styles.photoCard}>
+            <Image
+              source={{
+                uri: mediaDownloadUrl(item.media_asset_id),
+                headers: { Authorization: `Bearer ${accessToken}` },
+              }}
+              style={styles.photo}
+            />
+            <Text style={styles.badge}>
+              {item.is_primary ? "Primary" : `Photo ${index + 1}`}
+            </Text>
+            <Button title="Delete" onPress={() => removePhoto(item.id)} />
           </View>
-        ))}
-      </View>
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No photos yet</Text>
+            <Text style={styles.emptyText}>
+              Upload a few clear photos so people can see your profile.
+            </Text>
+          </View>
+        }
+      />
 
-      <Text style={styles.info}>{photos.length} of 12 photos uploaded</Text>
+      <Text style={styles.info}>
+        {orderedPhotos.length} of 12 photos uploaded
+      </Text>
 
-      <View style={styles.actions}>
-        <Button title="Add Photo" onPress={handleAddPhoto} color="#1976d2" />
-      </View>
-
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorTitle}>Coming Soon</Text>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+      <Button
+        title={uploading ? "Uploading…" : "Add Photo"}
+        onPress={pickPhoto}
+        disabled={uploading || orderedPhotos.length >= 12}
+      />
 
       <View style={styles.tips}>
-        <Text style={styles.tipsTitle}>📸 Photo Tips</Text>
+        <Text style={styles.tipsTitle}>Photo tips</Text>
         <Text style={styles.tipItem}>
-          • Use clear, well-lit photos where your face is clearly visible
+          • Use a clear, well-lit face photo as your first photo.
         </Text>
         <Text style={styles.tipItem}>
-          • Avoid photos with other people or filters
+          • JPEG, PNG, WebP, HEIC are supported.
         </Text>
-        <Text style={styles.tipItem}>
-          • Full-body photos help show your style and personality
-        </Text>
-        <Text style={styles.tipItem}>
-          • Your first photo is most important—make it count!
-        </Text>
+        <Text style={styles.tipItem}>• Keep uploads under 25 MB.</Text>
       </View>
     </ScrollView>
   );
@@ -96,98 +186,42 @@ export function ProfilePhotosScreen({ accessToken }: Props) {
 
 const styles = StyleSheet.create({
   container: { padding: 16, gap: 16 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   title: { fontSize: 24, fontWeight: "700", color: "#000" },
   description: { fontSize: 14, color: "#666", lineHeight: 20 },
-  featureBox: {
-    backgroundColor: "#e3f2fd",
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: "#1976d2",
-    padding: 16,
+  gallery: { gap: 12 },
+  photoCard: {
+    width: 180,
     gap: 8,
+    borderRadius: 12,
+    backgroundColor: "#f8f8f8",
+    padding: 8,
   },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1565c0",
+  photo: {
+    width: "100%",
+    height: 220,
+    borderRadius: 10,
+    backgroundColor: "#eaeaea",
   },
-  featureText: {
-    fontSize: 14,
-    color: "#1565c0",
-  },
-  featureList: { gap: 6, marginTop: 4 },
-  featureBullet: {
-    fontSize: 13,
-    color: "#1565c0",
-    lineHeight: 18,
-  },
-  placeholderGrid: {
-    flexDirection: "row",
-    gap: 12,
-    marginVertical: 16,
-  },
-  photoPlaceholder: {
-    flex: 1,
-    aspectRatio: 3 / 4,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#e0e0e0",
-    borderStyle: "dashed",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  placeholderText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#999",
-  },
-  placeholderSubtext: {
+  badge: {
     fontSize: 12,
-    color: "#ccc",
-    marginTop: 4,
+    color: "#444",
+    fontWeight: "600",
   },
-  info: {
-    textAlign: "center",
-    fontSize: 13,
-    color: "#999",
-    marginVertical: 8,
-  },
-  actions: { gap: 10 },
-  errorBox: {
-    backgroundColor: "#fff3e0",
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: "#ff9800",
-    padding: 16,
+  emptyState: {
+    paddingVertical: 24,
     gap: 8,
   },
-  errorTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#e65100",
-  },
-  errorText: {
-    fontSize: 13,
-    color: "#e65100",
-    lineHeight: 18,
-  },
+  emptyTitle: { fontSize: 16, fontWeight: "700" },
+  emptyText: { fontSize: 13, color: "#666" },
+  info: { textAlign: "center", fontSize: 13, color: "#999" },
+  error: { color: "#b00020" },
   tips: {
     backgroundColor: "#f9f9f9",
     borderRadius: 8,
     padding: 16,
     gap: 8,
-    marginTop: 8,
   },
-  tipsTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: 4,
-  },
-  tipItem: {
-    fontSize: 13,
-    color: "#666",
-    lineHeight: 18,
-  },
+  tipsTitle: { fontSize: 14, fontWeight: "700", color: "#333" },
+  tipItem: { fontSize: 13, color: "#666", lineHeight: 18 },
 });

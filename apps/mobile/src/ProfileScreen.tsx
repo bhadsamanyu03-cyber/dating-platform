@@ -21,6 +21,7 @@ import {
   Profile,
   saveProfile,
 } from "./profileApi";
+import { ProfilePhotosScreen } from "./screens/main/ProfilePhotosScreen";
 
 type Props = { accessToken: string; usernameToView?: string };
 type Draft = {
@@ -241,6 +242,12 @@ export function ProfileScreen({ accessToken, usernameToView }: Props) {
         disabled={saving}
         onPress={submit}
       />
+      {!usernameToView && (
+        <View style={{ marginTop: 24 }}>
+          <Text style={styles.subtitle}>Profile photos</Text>
+          <ProfilePhotosScreen accessToken={accessToken} />
+        </View>
+      )}
     </ScrollView>
   );
 }

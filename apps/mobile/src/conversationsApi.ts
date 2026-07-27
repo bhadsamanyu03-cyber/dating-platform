@@ -73,21 +73,13 @@ export async function sendMessage(
 }
 
 export async function uploadImage(token: string, uri: string) {
-  const body = new FormData();
-  body.append("file", {
-    uri,
-    name: "message-image.jpg",
-    type: "image/jpeg",
-  } as never);
-  return (
-    await checked(
-      await fetch(`${baseUrl}/media/upload`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body,
-      }),
-    )
-  ).json() as Promise<{ id: string }>;
+  const { uploadMediaAsset } = await import("./mediaApi");
+  return uploadMediaAsset(token, uri);
+}
+
+export async function uploadMedia(token: string, uri: string) {
+  const { uploadMediaAsset } = await import("./mediaApi");
+  return uploadMediaAsset(token, uri);
 }
 
 export function attachmentUrl(messageId: string, assetId: string) {
