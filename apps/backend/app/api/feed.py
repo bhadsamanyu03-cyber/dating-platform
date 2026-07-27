@@ -120,7 +120,7 @@ async def comments(
     db: AsyncSession = Depends(get_database_session),
 ) -> CommentPage:
     try:
-        return await EngagementService(db).comments(post_id, cursor, limit)
+        return await EngagementService(db).comments(post_id, user.id, cursor, limit)
     except (EngagementError, ValueError) as error:
         if isinstance(error, EngagementError):
             raise fail(error) from error

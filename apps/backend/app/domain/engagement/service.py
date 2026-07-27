@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.engagement.models import PostComment
 from app.domain.engagement.repository import EngagementRepository
 from app.domain.engagement.schemas import CommentCreate, CommentPage, CommentResponse
+from app.domain.feed.repository import FeedRepository
 from app.domain.identity.security import utcnow
 from app.domain.notifications.repository import decode_cursor, encode_cursor
 from app.domain.notifications.service import NotificationService
@@ -14,16 +15,18 @@ class EngagementError(Exception):
 
 class EngagementService:
     def __init__(self, db: AsyncSession):
-        self.db, self.repo = db, EngagementRepository(db)
+        self.db = db
+        self.repo = EngagementRepository(db)
+        self.feed = FeedRepository(db)
 
-    async def valid_post(self, id):
-        post = await self.repo.post(id)
+    async def valid_post(self, id, user):
+        post = await self.feed.post(id, user)
         if not post:
             raise EngagementError("Post not found", 404)
         return post
 
     async def like(self, post, user):
-        value = await self.valid_post(post)
+        value = await self.valid_post(post, user)
         if not await self.repo.like(post, user):
             raise EngagementError("Post already liked", 409)
         if value.author_user_id != user:
@@ -33,12 +36,12 @@ class EngagementService:
         await self.db.commit()
 
     async def unlike(self, post, user):
-        await self.valid_post(post)
+        await self.valid_post(post, user)
         await self.repo.unlike(post, user)
         await self.db.commit()
 
     async def create_comment(self, post, user, payload: CommentCreate):
-        target = await self.valid_post(post)
+        target = await self.valid_post(post, user)
         if not payload.body.strip():
             raise EngagementError("Comment body is required", 422)
         value = PostComment(post_id=post, author_user_id=user, body=payload.body.strip())
@@ -59,8 +62,8 @@ class EngagementService:
             created_at=value.created_at,
         )
 
-    async def comments(self, post, cursor: str | None, limit: int):
-        await self.valid_post(post)
+    async def comments(self, post, user, cursor: str | None, limit: int):
+        await self.valid_post(post, user)
         values = await self.repo.comments(post, decode_cursor(cursor), limit)
         page = values[:limit]
         return CommentPage(
@@ -73,13 +76,14 @@ class EngagementService:
             next_cursor=encode_cursor(page[-1]) if len(values) > limit and page else None,
         )
 
-    async def counts(self, post):
-        await self.valid_post(post)
+    async def counts(self, post, user):
+        await self.valid_post(post, user)
         return await self.repo.counts(post)
 
     async def delete_comment(self, id, user):
         value = await self.repo.owned_comment(id, user)
         if not value:
             raise EngagementError("Comment not found", 404)
+        await self.valid_post(value.post_id, user)
         value.deleted_at = utcnow()
         await self.db.commit()

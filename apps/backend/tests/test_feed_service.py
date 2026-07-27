@@ -114,6 +114,18 @@ class EngagementRepository:
         return None
 
 
+class FeedVisibilityRepository:
+    def __init__(self, target):
+        self.target = target
+
+    async def post(self, post_id, viewer):
+        if self.target.id != post_id:
+            return None
+        if self.target.visibility == "PUBLIC" or self.target.author_user_id == viewer:
+            return self.target
+        return None
+
+
 class Notifications:
     values = []
 
@@ -134,6 +146,7 @@ async def test_likes_comments_authorization_and_notifications(monkeypatch):
     monkeypatch.setattr(module, "NotificationService", Notifications)
     service = EngagementService(Database())
     service.repo = EngagementRepository(target)
+    service.feed = FeedVisibilityRepository(target)
     await service.like(target.id, actor)
     comment = await service.create_comment(target.id, actor, CommentCreate(body="Nice post"))
     assert [value[2] for value in Notifications.values] == ["POST_LIKE", "POST_COMMENT"]
@@ -143,3 +156,20 @@ async def test_likes_comments_authorization_and_notifications(monkeypatch):
     service.repo.like_created = False
     with pytest.raises(EngagementError, match="already liked"):
         await service.like(target.id, actor)
+
+
+@pytest.mark.asyncio
+async def test_private_posts_reject_engagement_when_not_viewable():
+    author, viewer = uuid4(), uuid4()
+    target = post(author)
+    target.visibility = "PRIVATE"
+    service = EngagementService(Database())
+    service.repo = EngagementRepository(target)
+    service.feed = FeedVisibilityRepository(target)
+
+    with pytest.raises(EngagementError, match="not found"):
+        await service.like(target.id, viewer)
+    with pytest.raises(EngagementError, match="not found"):
+        await service.unlike(target.id, viewer)
+    with pytest.raises(EngagementError, match="not found"):
+        await service.create_comment(target.id, viewer, CommentCreate(body="Nice post"))
