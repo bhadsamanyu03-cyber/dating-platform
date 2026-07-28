@@ -112,7 +112,10 @@ export function ProfilePhotosScreen({ accessToken }: Props) {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() => setRefreshing(true)}
+          onRefresh={() => {
+            setRefreshing(true);
+            void load();
+          }}
         />
       }
     >
