@@ -1,23 +1,24 @@
 import { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { verifyEmail } from "../../authApi";
 import type { AuthStackParamList } from "../AuthNavigator";
-const api = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 type Props = NativeStackScreenProps<AuthStackParamList, "Otp">;
 export function OtpScreen({ navigation, route }: Props) {
   const [token, setToken] = useState("");
   const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
   const submit = async () => {
-    const response = await fetch(`${api}/auth/verify-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      return setError(body.detail ?? "Verification failed");
+    setLoading(true);
+    setError(undefined);
+    try {
+      await verifyEmail(token);
+      navigation.navigate("Login");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Verification failed");
+    } finally {
+      setLoading(false);
     }
-    navigation.navigate("Login");
   };
   return (
     <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12 }}>
@@ -28,7 +29,11 @@ export function OtpScreen({ navigation, route }: Props) {
         value={token}
         onChangeText={setToken}
       />
-      <Button title="Verify email" onPress={submit} />
+      <Button
+        title={loading ? "Verifying..." : "Verify email"}
+        disabled={loading}
+        onPress={submit}
+      />
     </View>
   );
 }

@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { changePassword } from "../../authApi";
 
 type Props = {
   accessToken: string;
@@ -42,8 +43,8 @@ export function PasswordChangeScreen({
       return false;
     }
 
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters");
+    if (newPassword.length < 12) {
+      setError("Password must be at least 12 characters");
       return false;
     }
 
@@ -67,25 +68,7 @@ export function PasswordChangeScreen({
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1"}/auth/change-password`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            current_password: currentPassword,
-            new_password: newPassword,
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.detail ?? "Unable to change password");
-      }
+      await changePassword(accessToken, currentPassword, newPassword);
 
       Alert.alert("Success", "Your password has been changed", [
         {
@@ -136,7 +119,7 @@ export function PasswordChangeScreen({
 
       <View style={styles.section}>
         <Text style={styles.label}>New Password</Text>
-        <Text style={styles.hint}>At least 8 characters</Text>
+        <Text style={styles.hint}>At least 12 characters</Text>
         <View style={styles.passwordInputContainer}>
           <TextInput
             style={styles.passwordInput}
@@ -192,7 +175,7 @@ export function PasswordChangeScreen({
 
       <View style={styles.info}>
         <Text style={styles.infoTitle}>Password Requirements</Text>
-        <Text style={styles.infoBullet}>• At least 8 characters long</Text>
+        <Text style={styles.infoBullet}>• At least 12 characters long</Text>
         <Text style={styles.infoBullet}>
           • Must be different from your current password
         </Text>

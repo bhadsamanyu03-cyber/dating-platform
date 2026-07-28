@@ -85,7 +85,7 @@ export function HomeScreen({ navigation }: Props) {
       );
 
     setFeedPreview({ status: "loading" });
-    feed()
+    feed(token)
       .then((res) =>
         setFeedPreview({ status: "ready", data: res.posts.slice(0, 2) }),
       )

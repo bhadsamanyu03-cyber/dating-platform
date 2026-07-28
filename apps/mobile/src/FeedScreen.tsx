@@ -10,7 +10,15 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { createPost, feed, Post } from "./feedApi";
+import {
+  Comment,
+  comments,
+  createComment,
+  createPost,
+  feed,
+  likePost,
+  Post,
+} from "./feedApi";
 import { mediaDownloadUrl, uploadMediaAsset } from "./mediaApi";
 import { useAuthSession } from "./AuthSession";
 export function FeedScreen() {
@@ -22,10 +30,17 @@ export function FeedScreen() {
   const [caption, setCaption] = useState("");
   const [draftUris, setDraftUris] = useState<string[]>([]);
   const [posting, setPosting] = useState(false);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>(
+    {},
+  );
+  const [postComments, setPostComments] = useState<Record<string, Comment[]>>(
+    {},
+  );
   const load = async (refresh = false) => {
+    if (!session) return;
     refresh ? setRefreshing(true) : setLoading(true);
     try {
-      setPosts((await feed()).posts);
+      setPosts((await feed(session.accessToken)).posts);
       setError(undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load feed");
@@ -36,7 +51,7 @@ export function FeedScreen() {
   };
   useEffect(() => {
     load();
-  }, []);
+  }, [session?.accessToken]);
   const pickMedia = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -77,6 +92,60 @@ export function FeedScreen() {
       );
     } finally {
       setPosting(false);
+    }
+  };
+  const submitLike = async (postId: string) => {
+    if (!session) return;
+    try {
+      await likePost(session.accessToken, postId);
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === postId
+            ? { ...post, like_count: (post.like_count ?? 0) + 1 }
+            : post,
+        ),
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to like post");
+    }
+  };
+  const loadComments = async (postId: string) => {
+    if (!session) return;
+    try {
+      setPostComments((current) => ({ ...current, [postId]: [] }));
+      const page = await comments(session.accessToken, postId);
+      setPostComments((current) => ({
+        ...current,
+        [postId]: page.comments,
+      }));
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to load comments",
+      );
+    }
+  };
+  const submitComment = async (postId: string) => {
+    if (!session) return;
+    const body = commentDrafts[postId]?.trim();
+    if (!body) return;
+    try {
+      const created = await createComment(session.accessToken, postId, body);
+      setCommentDrafts((current) => ({ ...current, [postId]: "" }));
+      setPostComments((current) => ({
+        ...current,
+        [postId]: [created, ...(current[postId] ?? [])],
+      }));
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === postId
+            ? { ...post, comment_count: (post.comment_count ?? 0) + 1 }
+            : post,
+        ),
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to add comment",
+      );
     }
   };
   if (loading)
@@ -160,6 +229,34 @@ export function FeedScreen() {
                 }
               />
             ))}
+            <Text>
+              {post.like_count ?? 0} likes · {post.comment_count ?? 0} comments
+            </Text>
+            <Button title="Like" onPress={() => submitLike(post.id)} />
+            <Button
+              title="View comments"
+              onPress={() => loadComments(post.id)}
+            />
+            {postComments[post.id]?.map((comment) => (
+              <Text key={comment.id}>{comment.body}</Text>
+            ))}
+            <TextInput
+              placeholder="Write a comment"
+              value={commentDrafts[post.id] ?? ""}
+              onChangeText={(value) =>
+                setCommentDrafts((current) => ({
+                  ...current,
+                  [post.id]: value,
+                }))
+              }
+              style={{
+                borderWidth: 1,
+                borderColor: "#ddd",
+                borderRadius: 8,
+                padding: 10,
+              }}
+            />
+            <Button title="Comment" onPress={() => submitComment(post.id)} />
           </View>
         ))
       )}

@@ -1,3 +1,5 @@
+import { apiJson, authHeaders } from "./apiClient";
+
 export type Interest = { id: string; name: string };
 export type Profile = {
   username: string;
@@ -21,27 +23,24 @@ export type ProfilePhoto = {
   is_primary: boolean;
   created_at: string;
 };
-const baseUrl =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
-async function request<T>(
-  path: string,
-  token: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+export type DiscoveryPreferences = {
+  preferred_gender: string;
+  minimum_age: number;
+  maximum_age: number;
+  maximum_distance_km: number;
+  show_verified_only: boolean;
+  show_only_with_photos: boolean;
+  created_at: string;
+  updated_at: string;
+};
+const request = <T>(path: string, token: string, options: RequestInit = {}) =>
+  apiJson<T>(path, {
     ...options,
     headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+      ...authHeaders(token),
       ...options.headers,
     },
   });
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.detail ?? "Request failed");
-  }
-  return response.status === 204 ? (undefined as T) : response.json();
-}
 export const getMyProfile = (token: string) =>
   request<Profile>("/profile/me", token);
 export const getProfile = (username: string, token: string) =>
@@ -85,4 +84,16 @@ export const addPhoto = (
 export const deletePhoto = (token: string, photoId: string) =>
   request<void>(`/profile/me/photos/${photoId}`, token, {
     method: "DELETE",
+  });
+
+export const getPreferences = (token: string) =>
+  request<DiscoveryPreferences>("/profile/preferences", token);
+
+export const savePreferences = (
+  token: string,
+  preferences: Omit<DiscoveryPreferences, "created_at" | "updated_at">,
+) =>
+  request<DiscoveryPreferences>("/profile/preferences", token, {
+    method: "PUT",
+    body: JSON.stringify(preferences),
   });

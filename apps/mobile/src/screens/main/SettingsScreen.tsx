@@ -1,14 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Button,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import { deleteAccount } from "../../authApi";
+import {
+  DiscoveryPreferences,
+  getPreferences,
+  savePreferences,
+} from "../../profileApi";
 import { PasswordChangeScreen } from "./PasswordChangeScreen";
 
 type Props = {
@@ -16,252 +24,248 @@ type Props = {
   onLogout: () => void;
 };
 
-export function SettingsScreen({ accessToken, onLogout }: Props) {
-  const [actionInProgress, setActionInProgress] = useState(false);
-  const [showPasswordChange, setShowPasswordChange] = useState(false);
+const defaultPreferences: Omit<
+  DiscoveryPreferences,
+  "created_at" | "updated_at"
+> = {
+  preferred_gender: "All",
+  minimum_age: 18,
+  maximum_age: 120,
+  maximum_distance_km: 100,
+  show_verified_only: false,
+  show_only_with_photos: false,
+};
 
-  const handleLogout = () => {
-    Alert.alert("Sign out", "Are you sure you want to sign out?", [
-      { text: "Cancel", onPress: () => {}, style: "cancel" },
-      {
-        text: "Sign out",
-        onPress: () => {
-          setActionInProgress(true);
-          // In a real app, you would call a logout API and clear tokens
-          // For now, just call the callback to clear the app state
-          onLogout();
-        },
-        style: "destructive",
-      },
-    ]);
+export function SettingsScreen({ accessToken, onLogout }: Props) {
+  const [preferences, setPreferences] = useState(defaultPreferences);
+  const [savingPreferences, setSavingPreferences] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    getPreferences(accessToken)
+      .then((value) =>
+        setPreferences({
+          preferred_gender: value.preferred_gender,
+          minimum_age: value.minimum_age,
+          maximum_age: value.maximum_age,
+          maximum_distance_km: value.maximum_distance_km,
+          show_verified_only: value.show_verified_only,
+          show_only_with_photos: value.show_only_with_photos,
+        }),
+      )
+      .catch((cause) =>
+        setError(
+          cause instanceof Error ? cause.message : "Unable to load preferences",
+        ),
+      );
+  }, [accessToken]);
+
+  const updatePreference = (
+    key: keyof typeof defaultPreferences,
+    value: string | number | boolean,
+  ) => {
+    setPreferences((current) => ({ ...current, [key]: value }));
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "This action cannot be undone. All your data will be permanently deleted.",
-      [
-        { text: "Cancel", onPress: () => {}, style: "cancel" },
-        {
-          text: "Delete",
-          onPress: () => {
-            Alert.alert("Confirm", "Type DELETE to confirm account deletion.", [
-              {
-                text: "Cancel",
-                onPress: () => {},
-                style: "cancel",
-              },
-              {
-                text: "Confirm",
-                onPress: async () => {
-                  setActionInProgress(true);
-                  try {
-                    // TODO: Call DELETE /api/v1/auth/account endpoint
-                    // For now, just logout
-                    onLogout();
-                  } catch (e) {
-                    Alert.alert(
-                      "Error",
-                      e instanceof Error
-                        ? e.message
-                        : "Unable to delete account",
-                    );
-                  } finally {
-                    setActionInProgress(false);
-                  }
-                },
-                style: "destructive",
-              },
-            ]);
-          },
-          style: "destructive",
-        },
-      ],
-    );
+  const submitPreferences = async () => {
+    setSavingPreferences(true);
+    setError(undefined);
+    try {
+      const saved = await savePreferences(accessToken, preferences);
+      setPreferences({
+        preferred_gender: saved.preferred_gender,
+        minimum_age: saved.minimum_age,
+        maximum_age: saved.maximum_age,
+        maximum_distance_km: saved.maximum_distance_km,
+        show_verified_only: saved.show_verified_only,
+        show_only_with_photos: saved.show_only_with_photos,
+      });
+      Alert.alert("Saved", "Discovery preferences updated.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to save preferences",
+      );
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
+
+  const submitDeleteAccount = async () => {
+    try {
+      await deleteAccount(accessToken, deletePassword);
+      setShowDeleteAccount(false);
+      await onLogout();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to delete account",
+      );
+    }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Settings</Text>
+      {error && <Text style={styles.error}>{error}</Text>}
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
-        <SettingItem
-          label="Email & Password"
-          description="Manage your login credentials"
+        <Button
+          title="Change password"
           onPress={() => setShowPasswordChange(true)}
         />
+        <Button title="Sign out" onPress={onLogout} />
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Privacy & Safety</Text>
-        <SettingItem
-          label="Who can see my profile"
-          description="Public or matches only"
-          onPress={() =>
-            Alert.alert("Coming soon", "Privacy settings are not yet available")
+        <Text style={styles.sectionTitle}>Discovery preferences</Text>
+        <Text>Preferred gender</Text>
+        <Picker
+          selectedValue={preferences.preferred_gender}
+          onValueChange={(value) => updatePreference("preferred_gender", value)}
+        >
+          <Picker.Item label="Everyone" value="All" />
+          <Picker.Item label="Women" value="Woman" />
+          <Picker.Item label="Men" value="Man" />
+          <Picker.Item label="Non-binary" value="Non-binary" />
+          <Picker.Item label="Other" value="Other" />
+          <Picker.Item label="Prefer not to say" value="Prefer not to say" />
+        </Picker>
+        <PreferenceNumber
+          label="Minimum age"
+          value={preferences.minimum_age}
+          onChange={(value) => updatePreference("minimum_age", value)}
+        />
+        <PreferenceNumber
+          label="Maximum age"
+          value={preferences.maximum_age}
+          onChange={(value) => updatePreference("maximum_age", value)}
+        />
+        <PreferenceNumber
+          label="Maximum distance in km"
+          value={preferences.maximum_distance_km}
+          onChange={(value) => updatePreference("maximum_distance_km", value)}
+        />
+        <PreferenceSwitch
+          label="Verified profiles only"
+          value={preferences.show_verified_only}
+          onValueChange={(value) =>
+            updatePreference("show_verified_only", value)
           }
         />
-        <SettingItem
-          label="Blocked users"
-          description="View and manage blocked accounts"
-          onPress={() =>
-            Alert.alert(
-              "Coming soon",
-              "Blocking functionality is not yet available",
-            )
+        <PreferenceSwitch
+          label="Profiles with photos only"
+          value={preferences.show_only_with_photos}
+          onValueChange={(value) =>
+            updatePreference("show_only_with_photos", value)
           }
         />
-        <SettingItem
-          label="Report abuse"
-          description="Report inappropriate behavior"
-          onPress={() =>
-            Alert.alert("Coming soon", "Reporting is not yet available")
-          }
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
-        <SettingItem
-          label="Push notifications"
-          description="Receive alerts for matches and messages"
-          onPress={() =>
-            Alert.alert(
-              "Coming soon",
-              "Notification settings are not yet available",
-            )
-          }
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <SettingItem label="App version" description="0.1.0" disabled />
-        <SettingItem
-          label="Terms of Service"
-          description="View our terms"
-          onPress={() =>
-            Alert.alert(
-              "Coming soon",
-              "Terms of Service link not yet available",
-            )
-          }
-        />
-        <SettingItem
-          label="Privacy Policy"
-          description="View our privacy policy"
-          onPress={() =>
-            Alert.alert("Coming soon", "Privacy Policy link not yet available")
-          }
+        <Button
+          title={savingPreferences ? "Saving..." : "Save preferences"}
+          disabled={savingPreferences}
+          onPress={submitPreferences}
         />
       </View>
 
       <View style={styles.section}>
-        <View style={styles.dangerZone}>
-          <Button
-            title={actionInProgress ? "Signing out…" : "Sign out"}
-            disabled={actionInProgress}
-            onPress={handleLogout}
-            color="#1976d2"
-          />
-          <Button
-            title="Delete Account"
-            disabled={actionInProgress}
-            onPress={handleDeleteAccount}
-            color="#b00020"
-          />
-        </View>
+        <Text style={styles.sectionTitle}>Danger zone</Text>
+        <Button
+          title="Delete account"
+          color="#b00020"
+          onPress={() => setShowDeleteAccount(true)}
+        />
       </View>
 
-      <Text style={styles.footer}>
-        Need help? Contact support@dating-platform.local
-      </Text>
-      <Modal
-        visible={showPasswordChange}
-        onRequestClose={() => setShowPasswordChange(false)}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
+      <Modal visible={showPasswordChange} animationType="slide">
         <View style={styles.modalHeader}>
           <Button title="Close" onPress={() => setShowPasswordChange(false)} />
         </View>
         <PasswordChangeScreen
           accessToken={accessToken}
           onCancel={() => setShowPasswordChange(false)}
-          onSuccess={() => {
-            setShowPasswordChange(false);
-            Alert.alert(
-              "Password Changed",
-              "Your password has been successfully updated.",
-            );
-          }}
+          onSuccess={() => setShowPasswordChange(false)}
         />
+      </Modal>
+
+      <Modal visible={showDeleteAccount} animationType="slide">
+        <View style={styles.modalContent}>
+          <Text style={styles.title}>Delete account</Text>
+          <Text>Enter your password to permanently delete your account.</Text>
+          <TextInput
+            value={deletePassword}
+            onChangeText={setDeletePassword}
+            secureTextEntry
+            placeholder="Password"
+            style={styles.input}
+          />
+          <Button title="Cancel" onPress={() => setShowDeleteAccount(false)} />
+          <Button
+            title="Delete account"
+            color="#b00020"
+            disabled={!deletePassword}
+            onPress={submitDeleteAccount}
+          />
+        </View>
       </Modal>
     </ScrollView>
   );
 }
 
-function SettingItem(props: {
+function PreferenceNumber(props: {
   label: string;
-  description: string;
-  onPress?: () => void;
-  disabled?: boolean;
+  value: number;
+  onChange: (value: number) => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.settingItem,
-        pressed && !props.disabled && styles.settingItemPressed,
-      ]}
-      onPress={props.onPress}
-      disabled={props.disabled}
-    >
-      <View style={styles.settingContent}>
-        <Text style={styles.settingLabel}>{props.label}</Text>
-        <Text style={styles.settingDescription}>{props.description}</Text>
-      </View>
-      {!props.disabled && <Text style={styles.settingArrow}>›</Text>}
-    </Pressable>
+    <View>
+      <Text>{props.label}</Text>
+      <TextInput
+        value={String(props.value)}
+        onChangeText={(value) => props.onChange(Number(value) || 0)}
+        keyboardType="number-pad"
+        style={styles.input}
+      />
+    </View>
+  );
+}
+
+function PreferenceSwitch(props: {
+  label: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}) {
+  return (
+    <View style={styles.switchRow}>
+      <Text>{props.label}</Text>
+      <Switch value={props.value} onValueChange={props.onValueChange} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { paddingVertical: 12 },
-  section: { marginBottom: 16 },
+  container: { padding: 16, gap: 20 },
+  section: { gap: 12 },
   sectionTitle: {
     fontSize: 14,
     fontWeight: "700",
     color: "#666",
     textTransform: "uppercase",
-    marginHorizontal: 16,
-    marginBottom: 8,
-    letterSpacing: 0.5,
   },
-  settingItem: {
+  title: { fontSize: 24, fontWeight: "700", color: "#000" },
+  error: { color: "#b00020" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 10,
+  },
+  switchRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  settingItemPressed: {
-    backgroundColor: "#f5f5f5",
-  },
-  settingContent: { flex: 1, gap: 4 },
-  settingLabel: { fontSize: 16, fontWeight: "600", color: "#000" },
-  settingDescription: { fontSize: 13, color: "#999" },
-  settingArrow: { fontSize: 20, color: "#ccc", marginLeft: 8 },
-  dangerZone: {
-    paddingHorizontal: 16,
-    gap: 8,
-    paddingTop: 8,
-  },
-  footer: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#999",
-    marginTop: 24,
-    marginBottom: 24,
   },
   modalHeader: { paddingHorizontal: 12, paddingVertical: 8 },
+  modalContent: { padding: 20, gap: 16 },
 });

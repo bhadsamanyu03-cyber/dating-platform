@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAuthSession } from "../../AuthSession";
+import { login } from "../../authApi";
 import type { AuthStackParamList } from "../AuthNavigator";
 
-const api = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
 export function LoginScreen({ navigation }: Props) {
@@ -12,19 +12,21 @@ export function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
   const submit = async () => {
     setError(undefined);
-    const response = await fetch(`${api}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) return setError(body.detail ?? "Unable to sign in");
-    signIn({
-      accessToken: body.access_token,
-      refreshToken: body.refresh_token,
-    });
+    setLoading(true);
+    try {
+      const body = await login(email, password);
+      await signIn({
+        accessToken: body.access_token,
+        refreshToken: body.refresh_token,
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to sign in");
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12 }}>
@@ -42,7 +44,11 @@ export function LoginScreen({ navigation }: Props) {
         value={password}
         onChangeText={setPassword}
       />
-      <Button title="Sign in" onPress={submit} />
+      <Button
+        title={loading ? "Signing in..." : "Sign in"}
+        onPress={submit}
+        disabled={loading}
+      />
       <Button
         title="Create account"
         onPress={() => navigation.navigate("Register")}

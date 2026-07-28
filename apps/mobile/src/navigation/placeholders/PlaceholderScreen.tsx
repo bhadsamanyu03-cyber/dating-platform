@@ -1,45 +1,17 @@
-import { SafeAreaView, StyleSheet, Text, View } from "react-native";
-import { colors, spacing, typography } from "../../theme";
+import { Button, Text, View } from "react-native";
 
 export function PlaceholderScreen({
   title,
-  subtitle,
+  description = "Open the signed-in app to continue.",
 }: {
   title: string;
-  subtitle?: string;
+  description?: string;
 }) {
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>
-          {subtitle ?? "This screen is not built yet. Design system only."}
-        </Text>
-      </View>
-    </SafeAreaView>
+    <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 24, fontWeight: "700" }}>{title}</Text>
+      <Text>{description}</Text>
+      <Button title="Back" onPress={() => {}} />
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-    gap: spacing.xs,
-  },
-  title: {
-    color: colors.text.primary,
-    fontSize: typography.size.xxl,
-    fontWeight: typography.weight.bold,
-  },
-  subtitle: {
-    color: colors.text.muted,
-    fontSize: typography.size.sm,
-    textAlign: "center",
-  },
-});

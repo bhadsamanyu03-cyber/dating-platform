@@ -1,3 +1,4 @@
+import { ActivityIndicator, View } from "react-native";
 import {
   DarkTheme,
   NavigationContainer,
@@ -21,14 +22,22 @@ const navigationTheme: Theme = {
   },
 };
 
-/**
- * Temporary local auth-state switch. Phase C wires navigation shape only —
- * real session state will replace this once the auth screens are built
- * against the existing backend contracts (see AuthGate.tsx for the
- * current working auth flow, left untouched).
- */
 function NavigatorContent() {
-  const { session } = useAuthSession();
+  const { session, restoring } = useAuthSession();
+  if (restoring) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: colors.background,
+        }}
+      >
+        <ActivityIndicator />
+      </View>
+    );
+  }
   return (
     <NavigationContainer theme={navigationTheme}>
       {session ? <MainTabNavigator /> : <AuthNavigator />}

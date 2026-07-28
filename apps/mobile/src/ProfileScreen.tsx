@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Button,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,7 +22,10 @@ import {
   Profile,
   saveProfile,
 } from "./profileApi";
+import { useAuthSession } from "./AuthSession";
+import { NotificationFeedScreen } from "./screens/main/NotificationFeedScreen";
 import { ProfilePhotosScreen } from "./screens/main/ProfilePhotosScreen";
+import { SettingsScreen } from "./screens/main/SettingsScreen";
 
 type Props = { accessToken: string; usernameToView?: string };
 type Draft = {
@@ -52,6 +56,7 @@ const genderOptions = [
   "Prefer not to say",
 ];
 export function ProfileScreen({ accessToken, usernameToView }: Props) {
+  const { signOut } = useAuthSession();
   const [draft, setDraft] = useState<Draft>(empty);
   const [originalUsername, setOriginalUsername] = useState("");
   const [interests, setInterests] = useState<Interest[]>([]);
@@ -61,6 +66,8 @@ export function ProfileScreen({ accessToken, usernameToView }: Props) {
   const [completion, setCompletion] = useState(0);
   const [publicProfile, setPublicProfile] = useState<Profile>();
   const [showDobPicker, setShowDobPicker] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   useEffect(() => {
     const load = usernameToView
       ? getProfile(usernameToView, accessToken).then(setPublicProfile)
@@ -148,6 +155,13 @@ export function ProfileScreen({ accessToken, usernameToView }: Props) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Your profile</Text>
       <Text>{completion}% complete</Text>
+      <View style={styles.actions}>
+        <Button
+          title="Notifications"
+          onPress={() => setShowNotifications(true)}
+        />
+        <Button title="Settings" onPress={() => setShowSettings(true)} />
+      </View>
       {error && <Text style={styles.error}>{error}</Text>}
       <Field
         label="Username"
@@ -248,6 +262,18 @@ export function ProfileScreen({ accessToken, usernameToView }: Props) {
           <ProfilePhotosScreen accessToken={accessToken} />
         </View>
       )}
+      <Modal visible={showNotifications} animationType="slide">
+        <View style={styles.modalHeader}>
+          <Button title="Close" onPress={() => setShowNotifications(false)} />
+        </View>
+        <NotificationFeedScreen accessToken={accessToken} />
+      </Modal>
+      <Modal visible={showSettings} animationType="slide">
+        <View style={styles.modalHeader}>
+          <Button title="Close" onPress={() => setShowSettings(false)} />
+        </View>
+        <SettingsScreen accessToken={accessToken} onLogout={signOut} />
+      </Modal>
     </ScrollView>
   );
 }
@@ -281,6 +307,8 @@ const styles = StyleSheet.create({
     padding: 10,
     minHeight: 42,
   },
+  actions: { flexDirection: "row", gap: 8 },
+  modalHeader: { paddingHorizontal: 12, paddingVertical: 8 },
   error: { color: "#b00020" },
   option: { padding: 10 },
   selected: { padding: 10, backgroundColor: "#dceeff", fontWeight: "700" },

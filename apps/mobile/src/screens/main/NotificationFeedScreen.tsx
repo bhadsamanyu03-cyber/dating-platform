@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Button,
@@ -8,82 +8,102 @@ import {
   Text,
   View,
 } from "react-native";
-
-type Notification = {
-  id: string;
-  type: "match" | "like" | "message" | "system";
-  title: string;
-  message: string;
-  user?: { name: string; username: string };
-  timestamp: Date;
-  read: boolean;
-  action?: { label: string; callback: () => void };
-};
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+  Notification,
+  notifications,
+  unreadCount,
+} from "../../notificationsApi";
 
 type Props = {
   accessToken: string;
 };
 
 export function NotificationFeedScreen({ accessToken }: Props) {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "system",
-      title: "Welcome to Corvinth!",
-      message: "Complete your profile to start discovering matches.",
-      timestamp: new Date(),
-      read: false,
-      action: {
-        label: "Complete Profile",
-        callback: () => {},
-      },
-    },
-  ]);
-  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<Notification[]>([]);
+  const [cursor, setCursor] = useState<string | null>();
+  const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string>();
 
-  const handleMarkAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    );
+  const load = async (refresh = false) => {
+    refresh ? setRefreshing(true) : setLoading(true);
+    setError(undefined);
+    try {
+      const [page, count] = await Promise.all([
+        notifications(accessToken, refresh ? undefined : (cursor ?? undefined)),
+        unreadCount(accessToken),
+      ]);
+      setItems((current) =>
+        refresh ? page.notifications : [...current, ...page.notifications],
+      );
+      setCursor(page.next_cursor);
+      setUnread(count.count);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to load notifications",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const handleDismiss = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  useEffect(() => {
+    void load(true);
+  }, [accessToken]);
+
+  const markRead = async (notification: Notification) => {
+    if (notification.is_read) return;
+    try {
+      await markNotificationRead(accessToken, notification.id);
+      setItems((current) =>
+        current.map((item) =>
+          item.id === notification.id ? { ...item, is_read: true } : item,
+        ),
+      );
+      setUnread((current) => Math.max(0, current - 1));
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to update notification",
+      );
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllRead = async () => {
+    try {
+      await markAllNotificationsRead(accessToken);
+      setItems((current) =>
+        current.map((item) => ({ ...item, is_read: true })),
+      );
+      setUnread(0);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to update notifications",
+      );
+    }
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  if (loading) {
+  if (loading && !items.length) {
     return (
       <View style={styles.center}>
         <ActivityIndicator />
-        <Text>Loading notifications…</Text>
+        <Text>Loading notifications...</Text>
       </View>
     );
   }
 
-  if (error) {
+  if (error && !items.length) {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error}</Text>
-        <Button title="Retry" onPress={() => {}} />
-      </View>
-    );
-  }
-
-  if (!notifications.length) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.emoji}>🔔</Text>
-        <Text style={styles.emptyTitle}>No notifications</Text>
-        <Text style={styles.emptyMessage}>
-          You're all caught up! Matches and activity will appear here.
-        </Text>
+        <Button title="Retry" onPress={() => load(true)} />
       </View>
     );
   }
@@ -91,35 +111,34 @@ export function NotificationFeedScreen({ accessToken }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount}</Text>
-            </View>
-          )}
-        </View>
-        {unreadCount > 0 && (
-          <Pressable onPress={handleMarkAllAsRead}>
-            <Text style={styles.markAllLink}>Mark all as read</Text>
-          </Pressable>
-        )}
+        <Text style={styles.headerTitle}>Notifications</Text>
+        {unread > 0 && <Text style={styles.badge}>{unread}</Text>}
+        {unread > 0 && <Button title="Mark all read" onPress={markAllRead} />}
       </View>
 
       <FlatList
-        data={notifications}
+        data={items}
         keyExtractor={(item) => item.id}
+        refreshing={refreshing}
+        onRefresh={() => load(true)}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <Text style={styles.emptyTitle}>No notifications</Text>
+            <Text style={styles.emptyMessage}>
+              Matches, likes, messages, and moderation updates will appear here.
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <NotificationItem
             notification={item}
-            onPress={() => {
-              handleMarkAsRead(item.id);
-              item.action?.callback();
-            }}
-            onDismiss={() => handleDismiss(item.id)}
+            onPress={() => markRead(item)}
           />
         )}
+        ListFooterComponent={
+          cursor ? <Button title="Load more" onPress={() => load()} /> : null
+        }
       />
     </View>
   );
@@ -128,109 +147,29 @@ export function NotificationFeedScreen({ accessToken }: Props) {
 function NotificationItem(props: {
   notification: Notification;
   onPress: () => void;
-  onDismiss: () => void;
 }) {
-  const { notification, onPress, onDismiss } = props;
-
-  const getIcon = (): string => {
-    switch (notification.type) {
-      case "match":
-        return "💕";
-      case "like":
-        return "❤️";
-      case "message":
-        return "💬";
-      case "system":
-        return "ℹ️";
-      default:
-        return "📢";
-    }
-  };
-
-  const getBackgroundColor = (): string => {
-    if (notification.read) return "#f9f9f9";
-    switch (notification.type) {
-      case "match":
-        return "#fce4ec";
-      case "like":
-        return "#ffebee";
-      case "message":
-        return "#e3f2fd";
-      case "system":
-        return "#f5f5f5";
-      default:
-        return "#f5f5f5";
-    }
-  };
-
-  const getLeftBorderColor = (): string => {
-    if (notification.read) return "#e0e0e0";
-    switch (notification.type) {
-      case "match":
-        return "#c2185b";
-      case "like":
-        return "#d32f2f";
-      case "message":
-        return "#1976d2";
-      case "system":
-        return "#757575";
-      default:
-        return "#999";
-    }
-  };
-
-  const timeAgo = getTimeAgo(notification.timestamp);
-
+  const { notification, onPress } = props;
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.notification,
-        {
-          backgroundColor: getBackgroundColor(),
-          borderLeftColor: getLeftBorderColor(),
-        },
-        pressed && styles.notificationPressed,
-      ]}
+      style={[styles.notification, !notification.is_read && styles.unread]}
       onPress={onPress}
     >
-      <View style={styles.notificationContent}>
-        <View style={styles.notificationHeader}>
-          <Text style={styles.icon}>{getIcon()}</Text>
-          <View style={styles.textContent}>
-            <Text style={styles.title}>{notification.title}</Text>
-            <Text style={styles.message}>{notification.message}</Text>
-            {notification.user && (
-              <Text style={styles.user}>@{notification.user.username}</Text>
-            )}
-          </View>
-        </View>
-        <Text style={styles.timestamp}>{timeAgo}</Text>
-      </View>
-
-      {!notification.read && <View style={styles.unreadIndicator} />}
-
-      <View style={styles.actions}>
-        <Pressable onPress={onDismiss} style={styles.dismissButton}>
-          <Text style={styles.dismissText}>✕</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.title}>{notification.type.replace(/_/g, " ")}</Text>
+      <Text style={styles.message}>{notificationMessage(notification)}</Text>
+      <Text style={styles.timestamp}>
+        {new Date(notification.created_at).toLocaleString()}
+      </Text>
     </Pressable>
   );
 }
 
-function getTimeAgo(date: Date): string {
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-
-  return date.toLocaleDateString();
+function notificationMessage(notification: Notification) {
+  const payload = notification.payload;
+  if (payload.message) return payload.message;
+  if (payload.conversation_id) return "You have a new message.";
+  if (payload.match_id) return "You have a new match.";
+  if (payload.post_id) return "There is new activity on your post.";
+  return "You have a new update.";
 }
 
 const styles = StyleSheet.create({
@@ -240,124 +179,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
+    padding: 24,
   },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
   },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#000",
-  },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#000", flex: 1 },
   badge: {
     backgroundColor: "#d32f2f",
+    color: "#fff",
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
-  },
-  badgeText: {
-    color: "#fff",
-    fontSize: 12,
+    overflow: "hidden",
     fontWeight: "700",
   },
-  markAllLink: {
-    color: "#1976d2",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  listContent: {
-    padding: 12,
-    gap: 8,
-  },
+  listContent: { padding: 12, gap: 8, flexGrow: 1 },
   notification: {
-    flexDirection: "row",
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 4,
-    gap: 12,
-    alignItems: "center",
+    borderLeftColor: "#e0e0e0",
+    backgroundColor: "#f9f9f9",
+    gap: 6,
   },
-  notificationPressed: {
-    opacity: 0.7,
+  unread: {
+    borderLeftColor: "#1976d2",
+    backgroundColor: "#e3f2fd",
   },
-  notificationContent: {
-    flex: 1,
-    gap: 8,
-  },
-  notificationHeader: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  icon: {
-    fontSize: 24,
-  },
-  textContent: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#000",
-  },
-  message: {
-    fontSize: 13,
-    color: "#666",
-    lineHeight: 18,
-  },
-  user: {
-    fontSize: 12,
-    color: "#999",
-    fontStyle: "italic",
-  },
-  timestamp: {
-    fontSize: 12,
-    color: "#999",
-  },
-  unreadIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#d32f2f",
-    marginRight: 8,
-  },
-  actions: {
-    justifyContent: "flex-end",
-  },
-  dismissButton: {
-    padding: 8,
-  },
-  dismissText: {
-    fontSize: 16,
-    color: "#ccc",
-  },
-  error: {
-    color: "#b00020",
-  },
-  emoji: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#000",
-  },
-  emptyMessage: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginHorizontal: 20,
-  },
+  title: { fontSize: 15, fontWeight: "700", color: "#000" },
+  message: { fontSize: 13, color: "#666", lineHeight: 18 },
+  timestamp: { fontSize: 12, color: "#999" },
+  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#000" },
+  emptyMessage: { fontSize: 14, color: "#666", textAlign: "center" },
+  error: { color: "#b00020", textAlign: "center" },
 });
