@@ -19,7 +19,11 @@ import {
   uploadMedia,
 } from "./conversationsApi";
 
-const temporaryId = () => `local-${Date.now()}-${Math.random()}`;
+const temporaryId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-${Math.random()
+    .toString(16)
+    .slice(2, 14)}`;
 
 export function ConversationsScreen({ accessToken }: { accessToken: string }) {
   const [items, setItems] = useState<Conversation[]>([]);
