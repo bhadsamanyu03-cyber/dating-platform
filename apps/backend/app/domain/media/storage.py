@@ -118,6 +118,7 @@ class S3StorageProvider:
         self.name = name
         self.bucket = bucket
         self.retry_attempts = retry_attempts
+        self.timeout_seconds = timeout_seconds
         self.client = boto3.client(
             "s3",
             endpoint_url=endpoint_url or None,
@@ -137,7 +138,15 @@ class S3StorageProvider:
         last_error: Exception | None = None
         for attempt in range(self.retry_attempts):
             try:
-                return await asyncio.to_thread(operation, *args, **kwargs)
+                return await asyncio.wait_for(
+                    asyncio.to_thread(operation, *args, **kwargs),
+                    timeout=self.timeout_seconds,
+                )
+            except TimeoutError as error:
+                last_error = error
+                if attempt + 1 >= self.retry_attempts:
+                    break
+                await asyncio.sleep(min(0.1 * (2**attempt), 1.0))
             except (BotoCoreError, ClientError) as error:
                 last_error = error
                 if attempt + 1 >= self.retry_attempts:

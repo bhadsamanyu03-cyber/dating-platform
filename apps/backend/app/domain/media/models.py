@@ -1,13 +1,12 @@
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
+
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.domain.identity.models import Base
 
-if TYPE_CHECKING:
-    from app.domain.messaging.models import MessageMedia
+from app.domain.identity.models import Base
+from app.domain.messaging.models import MessageMedia
 
 
 class MediaAsset(Base):
@@ -60,6 +59,3 @@ class MediaVariant(Base):
     height: Mapped[int | None] = mapped_column(Integer)
     file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
-from app.domain.messaging.models import MessageMedia  # noqa: E402,F401
