@@ -1,7 +1,5 @@
 import * as FileSystem from "expo-file-system";
-
-const baseUrl =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+import { apiBaseUrl as baseUrl } from "./runtimeConfig";
 
 export type MediaAssetResponse = {
   id: string;

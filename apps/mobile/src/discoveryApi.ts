@@ -1,6 +1,5 @@
 import { DiscoveryProfile } from "./types";
-const baseUrl =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+import { apiBaseUrl as baseUrl } from "./runtimeConfig";
 export async function discovery(token: string, cursor?: string) {
   const response = await fetch(
     `${baseUrl}/discovery${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,

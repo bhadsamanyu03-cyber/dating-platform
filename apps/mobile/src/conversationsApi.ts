@@ -1,5 +1,4 @@
-const baseUrl =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+import { apiBaseUrl as baseUrl } from "./runtimeConfig";
 
 export type Conversation = { id: string; match_id: string; created_at: string };
 export type Message = {

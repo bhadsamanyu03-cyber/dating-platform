@@ -1,7 +1,5 @@
 import { MatchResponse } from "./types";
-
-const baseUrl =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+import { apiBaseUrl as baseUrl } from "./runtimeConfig";
 
 export async function matches(token: string, cursor?: string) {
   const response = await fetch(
