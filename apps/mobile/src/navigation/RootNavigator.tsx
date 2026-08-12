@@ -2,6 +2,7 @@ import { ActivityIndicator, View } from "react-native";
 import {
   DarkTheme,
   NavigationContainer,
+  NavigationIndependentTree,
   Theme,
 } from "@react-navigation/native";
 import { AuthNavigator } from "./AuthNavigator";
@@ -48,7 +49,9 @@ function NavigatorContent() {
 export function RootNavigator() {
   return (
     <AuthSessionProvider>
-      <NavigatorContent />
+      <NavigationIndependentTree>
+        <NavigatorContent />
+      </NavigationIndependentTree>
     </AuthSessionProvider>
   );
 }
