@@ -1,5 +1,6 @@
 from alembic import context
 from app.core.config import get_settings
+from app.infrastructure.database import sync_database_url
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url.unicode_string())
@@ -14,7 +15,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     from sqlalchemy import create_engine
 
-    engine = create_engine(config.get_main_option("sqlalchemy.url").replace("+asyncpg", "+psycopg"))
+    engine = create_engine(sync_database_url(config.get_main_option("sqlalchemy.url")))
     with engine.connect() as connection:
         context.configure(connection=connection)
         with context.begin_transaction():
