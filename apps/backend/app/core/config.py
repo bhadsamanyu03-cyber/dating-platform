@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=None if os.getenv("APP_ENVIRONMENT") == "production" else ".env",
+        env_file=".env" if os.getenv("APP_ENVIRONMENT") == "development" else None,
         env_file_encoding="utf-8",
         extra="ignore",
     )
