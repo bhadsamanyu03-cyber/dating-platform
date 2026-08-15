@@ -2,6 +2,7 @@ from functools import lru_cache
 import os
 from pathlib import Path
 from typing import Literal
+from urllib.parse import quote_plus
 
 from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -58,11 +59,29 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production(self) -> "Settings":
+        self.database_url = self._railway_database_url(self.database_url)
         if self.app_environment == "production" and self.app_debug:
             raise ValueError("APP_DEBUG must be false in production")
         if self.jwt_secret_key.get_secret_value().startswith("replace-"):
             raise ValueError("JWT_SECRET_KEY must be replaced")
         return self
+
+    @staticmethod
+    def _railway_database_url(database_url: PostgresDsn) -> PostgresDsn:
+        pg_host = os.getenv("PGHOST") or os.getenv("POSTGRES_HOST")
+        pg_port = os.getenv("PGPORT") or os.getenv("POSTGRES_PORT")
+        pg_db = os.getenv("PGDATABASE") or os.getenv("POSTGRES_DB")
+        pg_user = os.getenv("PGUSER") or os.getenv("POSTGRES_USER")
+        pg_password = os.getenv("PGPASSWORD") or os.getenv("POSTGRES_PASSWORD")
+
+        if not all([pg_host, pg_port, pg_db, pg_user, pg_password]):
+            return database_url
+
+        railway_url = (
+            f"postgresql://{quote_plus(pg_user)}:{quote_plus(pg_password)}"
+            f"@{pg_host}:{pg_port}/{pg_db}"
+        )
+        return PostgresDsn(railway_url)
 
 
 @lru_cache
