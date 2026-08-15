@@ -1,4 +1,5 @@
 from functools import lru_cache
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -7,7 +8,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=None if os.getenv("APP_ENVIRONMENT") == "production" else ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
     app_name: str = "dating-platform-api"
     app_environment: Literal["development", "test", "staging", "production"] = "development"
     app_debug: bool = False
