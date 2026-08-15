@@ -3,7 +3,7 @@ from app.core.config import get_settings
 from app.infrastructure.database import sync_database_url
 
 config = context.config
-config.set_main_option("sqlalchemy.url", get_settings().database_url.unicode_string())
+config.set_main_option("sqlalchemy.url", str(get_settings().database_url))
 
 
 def run_migrations_offline() -> None:
