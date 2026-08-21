@@ -10,7 +10,6 @@ import { apiBaseUrl as api } from "./runtimeConfig";
 export function AuthGate() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [verificationToken, setVerificationToken] = useState("");
   const [token, setToken] = useState<string>();
   const [screen, setScreen] = useState<
     "profile" | "discovery" | "matches" | "conversations" | "feed" | "search"
@@ -27,24 +26,8 @@ export function AuthGate() {
       const body = await response.json().catch(() => ({}));
       return setError(body.detail ?? "Unable to continue");
     }
-    if (path === "register")
-      return setError(
-        "Check your email, enter the verification token below, then sign in.",
-      );
     const body = await response.json();
-    setToken(body.access_token);
-  };
-  const verify = async () => {
-    const response = await fetch(`${api}/auth/verify-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: verificationToken }),
-    });
-    setError(
-      response.ok
-        ? "Email verified. You can now sign in."
-        : "Verification failed.",
-    );
+    setToken(body.access_token ?? body.refresh_token ?? body.token);
   };
   if (token)
     return (
@@ -92,12 +75,6 @@ export function AuthGate() {
       />
       <Button title="Sign in" onPress={() => submit("login")} />
       <Button title="Create account" onPress={() => submit("register")} />
-      <TextInput
-        placeholder="Email verification token"
-        value={verificationToken}
-        onChangeText={setVerificationToken}
-      />
-      <Button title="Verify email" onPress={verify} />
     </View>
   );
 }

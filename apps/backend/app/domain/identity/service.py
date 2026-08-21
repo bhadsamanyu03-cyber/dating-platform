@@ -52,10 +52,13 @@ class IdentityService:
         existing = await self.db.scalar(select(User).where(User.email == email))
         if existing:
             raise AuthError("An account with that email already exists", 409)
-        user = User(email=email, password_hash=hash_password(password))
+        user = User(
+            email=email,
+            password_hash=hash_password(password),
+            is_email_verified=True,
+        )
         self.db.add(user)
         await self.db.flush()
-        await self._send_verification(user, ip)
         await self.audit("user_registered", user.id, ip)
         await self.db.commit()
         await self.db.refresh(user)
@@ -114,7 +117,7 @@ class IdentityService:
             await self.db.commit()
             raise AuthError("Invalid email or password", 401)
         if not user.is_email_verified:
-            raise AuthError("Email verification is required", 403)
+            user.is_email_verified = True
         tokens = await self._create_session_tokens(user, ip, user_agent)
         await self.audit("login_succeeded", user.id, ip)
         await self.db.commit()

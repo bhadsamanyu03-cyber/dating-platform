@@ -28,13 +28,6 @@ export function register(email: string, password: string) {
   });
 }
 
-export function verifyEmail(token: string) {
-  return apiJson<void>("/auth/verify-email", {
-    method: "POST",
-    body: JSON.stringify({ token }),
-  });
-}
-
 export function refreshSession(refreshToken: string) {
   return apiJson<TokenResponse>("/auth/refresh", {
     method: "POST",
